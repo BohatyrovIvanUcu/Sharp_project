@@ -1,0 +1,34 @@
+# Environments & secrets
+.env
+.env.*
+!.env.example
+*.params.env
+*.pem
+*.key
+infra/terraform.tfvars
+infra/*.tfstate*
+infra/.terraform/
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# OS / Editors
+.DS_Store
+.idea/
+.vscode/
+
+# Local UI audit artifacts
+.hallmark/

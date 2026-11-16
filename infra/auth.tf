@@ -1,0 +1,102 @@
+data "aws_caller_identity" "current" {}
+
+resource "aws_cognito_user_pool" "main" {
+  name                     = "${var.project_name}-users"
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  username_configuration {
+    case_sensitive = false
+  }
+
+  admin_create_user_config {
+    allow_admin_create_user_only = false
+  }
+
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
+    }
+  }
+
+  password_policy {
+    minimum_length                   = 8
+    require_lowercase                = true
+    require_numbers                  = true
+    require_uppercase                = true
+    require_symbols                  = true
+    temporary_password_validity_days = 7
+  }
+
+  email_configuration {
+    email_sending_account = "COGNITO_DEFAULT"
+  }
+}
+
+resource "aws_cognito_user_pool_domain" "main" {
+  domain       = "${var.project_name}-${data.aws_caller_identity.current.account_id}"
+  user_pool_id = aws_cognito_user_pool.main.id
+}
+
+locals {
+  google_enabled = nonsensitive(var.google_client_id != "" && var.google_client_secret != "")
+  base_origins = [
+    "http://localhost:3000",
+    "http://localhost:3002",
+    "http://localhost:5173",
+  ]
+  all_origins         = var.app_url != "" ? distinct(concat(local.base_origins, [trimsuffix(var.app_url, "/")])) : local.base_origins
+  oauth_callback_urls = [for origin in local.all_origins : "${origin}/auth/callback"]
+  oauth_logout_urls   = [for origin in local.all_origins : "${origin}/"]
+}
+
+resource "aws_cognito_identity_provider" "google" {
+  count         = local.google_enabled ? 1 : 0
+  user_pool_id  = aws_cognito_user_pool.main.id
+  provider_name = "Google"
+  provider_type = "Google"
+
+  provider_details = {
+    client_id        = var.google_client_id
+    client_secret    = var.google_client_secret
+    authorize_scopes = "openid email profile"
+  }
+
+  attribute_mapping = {
+    email          = "email"
+    email_verified = "email_verified"
+    name           = "name"
+    username       = "sub"
+  }
+
+  lifecycle {
+    ignore_changes = [provider_details, attribute_mapping]
+  }
+}
+
+resource "aws_cognito_user_pool_client" "main" {
+  name                          = "${var.project_name}-web"
+  user_pool_id                  = aws_cognito_user_pool.main.id
+  explicit_auth_flows           = ["ALLOW_USER_PASSWORD_AUTH", "ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+  prevent_user_existence_errors = "ENABLED"
+  enable_token_revocation       = true
+  id_token_validity             = 60
+  access_token_validity         = 60
+  refresh_token_validity        = 30
+
+  token_validity_units {
+    id_token      = "minutes"
+    access_token  = "minutes"
+    refresh_token = "days"
+  }
+
+  supported_identity_providers         = local.google_enabled ? ["COGNITO", "Google"] : ["COGNITO"]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_scopes                 = ["openid", "email", "profile"]
+  callback_urls                        = local.oauth_callback_urls
+  logout_urls                          = local.oauth_logout_urls
+
+  depends_on = [aws_cognito_identity_provider.google]
+}

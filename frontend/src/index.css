@@ -1,0 +1,457 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Dusk (by request) · redesign: full
+ * nav: single-row slate header with periwinkle dot tabs · signature: Socratic focus pane with 2-minute step ledger · states: loading, empty, error, full · dusk: ridge/periwinkle-apricot/glass
+ * axes: dark/grotesk-sans/cool · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P5 H4 E5 S5 R5 V4 · weakest: R, removed generated optical blobs and mono tags so real dusk photography, smoked glass, and calm type lead */
+/* Hallmark · dropped setPaused, handleEnter, handleMove, handlePointerMove, onPointerMove, onPointerEnter, onPointerLeave, setSelectedSessionId, setProblemInput, setSelectedFramework, setTab, handleStartSession · Dusk redesign removed procedural canvas artifact and cursor spotlight per dusk.md do-nots, unified mobile drawer close on tab/session switch, and moved composer handlers into TaskComposer */
+/* Hallmark · dismissed 29 · Dusk spec mandates smoked glass --glass surface with --glass-blur over the dusk hero landscape */
+
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./base.css" layer(base);
+
+:root {
+  interpolate-size: allow-keywords;
+}
+
+.visually-hidden {
+  position: absolute;
+  clip-path: inset(50%);
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-body);
+    font-weight: 400;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  button:active:not(:disabled),
+  a:active {
+    transform: translateY(1px);
+  }
+}
+
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: var(--modal-backdrop);
+}
+
+@keyframes dusk-sky-drift {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.03) translate3d(0.8%, 0.45%, 0);
+  }
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes dusk-peaks-drift {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.035) translate3d(-0.6%, -0.45%, 0);
+  }
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes dusk-mist-drift {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.04) translate3d(-1.1%, 0.35%, 0);
+  }
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.dusk-sky-drift,
+.dusk-peaks-drift,
+.dusk-mist-drift,
+.dusk-parallax-sky,
+.dusk-parallax-peaks,
+.dusk-parallax-mist,
+.dusk-parallax-mid,
+.dusk-parallax-pane {
+  transform: translate3d(0, 0, 0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dusk-sky-drift {
+    animation: dusk-sky-drift 56s var(--ease-in-out) infinite;
+    will-change: transform;
+  }
+
+  .dusk-peaks-drift {
+    animation: dusk-peaks-drift 48s var(--ease-in-out) infinite;
+    will-change: transform;
+  }
+
+  .dusk-mist-drift {
+    animation: dusk-mist-drift 38s var(--ease-in-out) infinite;
+    will-change: transform;
+  }
+
+  .dusk-parallax-sky {
+    scale: 1.09;
+    translate: calc(var(--px, 0) * 1.5%) calc(var(--py, 0) * 0.9%);
+    transition: translate 280ms var(--ease-out);
+    will-change: translate;
+  }
+
+  .dusk-parallax-peaks {
+    scale: 1.11;
+    translate: calc(var(--px, 0) * -2.1%) calc(var(--py, 0) * -1.3%);
+    transform: perspective(1400px) rotateY(calc(var(--px, 0) * -1.4deg))
+      rotateX(calc(var(--py, 0) * 0.9deg));
+    transition:
+      translate 240ms var(--ease-out),
+      transform 240ms var(--ease-out);
+    will-change: translate, transform;
+  }
+
+  .dusk-parallax-mist {
+    scale: 1.14;
+    translate: calc(var(--px, 0) * -3.5%) calc(var(--py, 0) * -2%);
+    transition: translate var(--dur-short) var(--ease-out);
+    will-change: translate;
+  }
+
+  .dusk-parallax-mid {
+    translate: calc(var(--px, 0) * 10px) calc(var(--py, 0) * 7px);
+    transition: translate var(--dur-short) var(--ease-out);
+  }
+
+  .dusk-parallax-pane {
+    translate: calc(var(--px, 0) * 18px) calc(var(--py, 0) * 12px);
+    transition: translate var(--dur-short) var(--ease-out);
+  }
+}
+
+.dusk-hero-scrim {
+  background: radial-gradient(
+    ellipse closest-side at 30% 48%,
+    var(--fog-scrim-soft) 0%,
+    transparent 100%
+  );
+}
+
+.dusk-text-scrim {
+  background: radial-gradient(
+    ellipse closest-side at 48% 54%,
+    var(--fog-scrim) 0%,
+    var(--fog-scrim-soft) 66%,
+    transparent 100%
+  );
+}
+
+.dusk-hero-fade {
+  background: linear-gradient(to bottom, transparent 58%, var(--color-paper) 100%);
+}
+
+.dusk-glass-pane {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glass-hi), var(--shadow-card);
+}
+
+.dusk-glass-row-rule {
+  border-color: var(--glass-row);
+}
+
+.dusk-surface {
+  background-color: var(--surface-frosted);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.dusk-surface-elevated {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.dusk-frosted-photo {
+  filter: var(--frosted-photo-filter);
+  transform: scale(1.14);
+}
+
+.dusk-frosted-veil {
+  background: radial-gradient(
+    ellipse 85% 70% at 56% 42%,
+    var(--veil-top) 0%,
+    var(--veil-mid) 72%,
+    var(--color-paper) 100%
+  );
+}
+
+.dusk-sidebar {
+  background-color: var(--surface-sidebar);
+}
+
+.dusk-composer-shell {
+  max-width: 34rem;
+  border-radius: var(--radius-inner);
+  padding: var(--space-xs) var(--space-sm);
+  transition:
+    max-width var(--dur-long) var(--ease-out),
+    border-radius var(--dur-long) var(--ease-out),
+    box-shadow var(--dur-long) var(--ease-out);
+}
+
+.dusk-composer-shell[data-expanded="true"] {
+  max-width: 40rem;
+  border-radius: var(--radius-inner);
+  padding: var(--space-sm);
+}
+
+.dusk-composer-shell:has(.dusk-composer-input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.dusk-composer-input {
+  font-size: max(1rem, 1em);
+  min-height: 2.5rem;
+  transition: min-height var(--dur-long) var(--ease-out);
+}
+
+.dusk-composer-input[data-expanded="true"] {
+  min-height: 3.5rem;
+}
+
+.dusk-composer-input:focus-visible {
+  outline: none;
+}
+
+.dusk-composer-subgrid {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-long) var(--ease-out),
+    opacity var(--dur-short) var(--ease-out);
+}
+
+.dusk-composer-subgrid[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.dusk-composer-subgrid > div {
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur-long);
+}
+
+.dusk-composer-subgrid[data-open="true"] > div {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.dusk-composer-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-long) var(--ease-out),
+    opacity var(--dur-short) var(--ease-out);
+}
+
+.dusk-composer-drawer[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.dusk-composer-drawer > div {
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur-long);
+}
+
+.dusk-composer-drawer[data-open="true"] > div {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dusk-composer-shell,
+  .dusk-composer-input,
+  .dusk-composer-subgrid,
+  .dusk-composer-subgrid > div,
+  .dusk-composer-drawer,
+  .dusk-composer-drawer > div {
+    transition: none;
+  }
+}
+
+.dusk-well {
+  background-color: var(--color-well);
+  color: var(--color-well-ink);
+  border: 1px solid var(--color-well-rule);
+  border-radius: var(--radius-card);
+}
+
+.dusk-well-card {
+  background-color: var(--color-card);
+  color: var(--color-well-ink);
+  border: 1px solid var(--color-well-rule);
+  border-radius: var(--radius-inner);
+}
+
+.dusk-field {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-inner);
+  transition:
+    border-color var(--dur-micro) var(--ease-out),
+    box-shadow var(--dur-micro) var(--ease-out);
+}
+
+.dusk-field::placeholder {
+  color: var(--color-muted);
+}
+
+.dusk-field:focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 3px var(--field-focus-ring);
+}
+
+.dusk-pill-primary {
+  background-color: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glass-hi);
+  font-weight: 500;
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    transform var(--dur-micro) var(--ease-out);
+}
+
+.dusk-pill-primary:hover:not(:disabled) {
+  background-color: var(--color-accent-hi);
+}
+
+.dusk-pill-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dusk-btn-ghost {
+  background-color: var(--glass-inset);
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out),
+    transform var(--dur-micro) var(--ease-out);
+}
+
+.dusk-btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-paper-3);
+  border-color: var(--color-muted);
+}
+
+.dusk-btn-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dusk-timer-transition {
+  transition: stroke-dashoffset var(--dur-long) var(--ease-out);
+}
+
+.dusk-chip {
+  background-color: var(--glass-chip);
+  border: 1px solid var(--glass-border);
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out),
+    color var(--dur-micro) var(--ease-out);
+}
+
+.dusk-chip:hover:not(:disabled) {
+  background-color: var(--glass-chip-hover);
+  border-color: var(--glass-border-hover);
+}
+
+.dusk-chip-active {
+  background-color: var(--glass-chip-strong);
+  border: 1px solid var(--glass-border);
+}
+
+.dusk-chip-soft {
+  background-color: var(--glass-chip-soft);
+  border: 1px solid var(--glass-border);
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out);
+}
+
+.dusk-chip-soft:hover:not(:disabled) {
+  background-color: var(--glass-chip-hover);
+  border-color: var(--glass-border-hover);
+}
+
+.dusk-hover-tint {
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    color var(--dur-micro) var(--ease-out);
+}
+
+.dusk-hover-tint:hover:not(:disabled) {
+  background-color: var(--glass-chip-hover);
+}
+
+.dusk-hover-soft:hover:not(:disabled) {
+  background-color: var(--glass-chip-soft);
+}
+
+.dusk-pill-tag {
+  background-color: color-mix(in oklch, var(--color-paper) 78%, transparent);
+  border: 1px solid var(--glass-border);
+}
+
+.dusk-divider-rule {
+  background-color: var(--glass-border);
+}
+
+.dusk-backdrop {
+  background: var(--modal-backdrop);
+}
