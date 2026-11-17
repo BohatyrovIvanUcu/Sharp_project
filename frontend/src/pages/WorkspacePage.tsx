@@ -1366,14 +1366,6 @@ export function WorkspacePage() {
                           {t.skipToPlan}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setChatOpen(true)}
-                        className="dusk-btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-ink-2 hover:text-ink"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                        <span>{t.assistantChatTrigger}</span>
-                      </button>
                     </div>
                   </form>
 
@@ -1475,16 +1467,6 @@ export function WorkspacePage() {
                         setMonetizationOpen(true)
                       }}
                     />
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setChatOpen(true)}
-                        className="dusk-btn-ghost inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs text-ink-2 hover:text-ink"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                        <span>{t.assistantChatTrigger}</span>
-                      </button>
-                    </div>
                   </div>
                 )}
               </section>
