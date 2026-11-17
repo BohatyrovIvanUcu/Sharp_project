@@ -440,12 +440,15 @@ export function SessionChatDrawer({
               type="submit"
               disabled={isSending || (!draft.trim() && pendingAttachments.length === 0)}
               aria-label={t.assistantChatSend}
-              className="dusk-pill-primary inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-inner! px-3.5 py-2 text-xs font-medium sm:text-sm"
+              title={t.assistantChatSend}
+              className={
+                variant === "drawer"
+                  ? "dusk-pill-primary inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-inner! p-0"
+                  : "dusk-pill-primary inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-inner! px-3.5 py-2 text-xs font-medium sm:text-sm"
+              }
             >
-              <Send className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className={variant === "drawer" ? "hidden sm:inline" : ""}>
-                {t.assistantChatSend}
-              </span>
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {variant !== "drawer" && <span>{t.assistantChatSend}</span>}
             </button>
           </div>
         </div>
