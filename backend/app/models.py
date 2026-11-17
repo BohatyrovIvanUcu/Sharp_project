@@ -29,6 +29,11 @@ def default_cognitive_profile() -> dict[str, Any]:
         "completed_sessions": 0,
         "total_focus_seconds": 0,
         "current_streak": 0,
+        "subscription": {
+            "tier": "free",
+            "audio_coach_enabled": False,
+            "video_explainer_enabled": False,
+        },
     }
 
 
@@ -135,6 +140,10 @@ class ThinkingSession(Base):
         cascade="all, delete-orphan",
         order_by="SessionMessage.created_at",
     )
+    memories: Mapped[list["MemoryEmbedding"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
 
 
 class SessionMessage(Base):
@@ -211,7 +220,7 @@ class MemoryEmbedding(Base):
         nullable=False,
     )
     session_id: Mapped[str | None] = mapped_column(
-        ForeignKey("thinking_sessions.id", ondelete="SET NULL"),
+        ForeignKey("thinking_sessions.id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )
@@ -226,3 +235,4 @@ class MemoryEmbedding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="memories")
+    session: Mapped["ThinkingSession | None"] = relationship(back_populates="memories")

@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User, default_cognitive_profile
+from app.schemas import SubscriptionStatusOut, SubscriptionTier
 
 
 def _find_user(db: Session, cognito_sub: str, email: str = "") -> User | None:
@@ -54,6 +55,34 @@ def get_or_create(db: Session, cognito_sub: str, email: str, name: str | None) -
 
 def update_name(db: Session, user: User, name: str | None) -> User:
     user.name = name.strip() if name and name.strip() else None
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_subscription(user: User) -> SubscriptionStatusOut:
+    profile = user.cognitive_profile or {}
+    raw_sub = profile.get("subscription")
+    if isinstance(raw_sub, dict):
+        tier: SubscriptionTier = "pro" if raw_sub.get("tier") == "pro" else "free"
+        is_pro = tier == "pro"
+        return SubscriptionStatusOut(
+            tier=tier,
+            audio_coach_enabled=bool(raw_sub.get("audio_coach_enabled", is_pro)),
+            video_explainer_enabled=bool(raw_sub.get("video_explainer_enabled", is_pro)),
+        )
+    return SubscriptionStatusOut()
+
+
+def update_subscription(db: Session, user: User, tier: SubscriptionTier) -> User:
+    profile = {**default_cognitive_profile(), **(user.cognitive_profile or {})}
+    is_pro = tier == "pro"
+    profile["subscription"] = {
+        "tier": tier,
+        "audio_coach_enabled": is_pro,
+        "video_explainer_enabled": is_pro,
+    }
+    user.cognitive_profile = profile
     db.commit()
     db.refresh(user)
     return user

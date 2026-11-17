@@ -378,3 +378,60 @@ def test_option_id_length_attachment_sanitization_and_rate_limit(
     assert r2.status_code == 200
     assert r3.status_code == 429
     rate_limit.reset_rate_limiter()
+
+
+def test_simple_problem_fast_tracks_to_action_plan_on_step_1(client: TestClient) -> None:
+    resp = client.post(
+        "/api/sessions",
+        json={
+            "problem": "Написати короткий лист викладачу про перенесення консультації",
+            "mode": "task",
+        },
+    )
+    assert resp.status_code == 201
+    session = resp.json()
+    assert session["phase"] == "executing"
+    assert session["max_questions"] == 1
+    assert len(session["steps"]) >= 3
+    assert session["summary"] is not None
+
+
+def test_chat_sync_to_socratic_and_breakdown_and_auto_completion(client: TestClient) -> None:
+    created = client.post(
+        "/api/sessions",
+        json={"problem": "Застряг на архітектурі бази даних", "mode": "task"},
+    ).json()
+    sid = created["id"]
+
+    # Send a chat message with specific context, then answer Q1 -> Q2 sees chat context
+    chat_res = client.post(
+        f"/api/sessions/{sid}/chat",
+        json={"content": "У мене таблиця orders без індексів"},
+    ).json()
+    assert chat_res["messages"][-1]["conversation_complete"] is False
+
+    # Send closure message -> assistant marks conversation_complete=True
+    closed_chat = client.post(
+        f"/api/sessions/{sid}/chat",
+        json={"content": "Дякую, все зрозуміло"},
+    ).json()
+    assert closed_chat["messages"][-1]["conversation_complete"] is True
+
+    # Plan and split stuck step -> breakdown receives chat_messages context
+    planned = client.post(f"/api/sessions/{sid}/plan").json()
+    active_step_id = planned["steps"][0]["id"]
+    split_res = client.post(f"/api/sessions/{sid}/steps/{active_step_id}/stuck").json()
+    assert "враховуючи з чату" in split_res["steps"][1]["description"]
+
+    # Splitting repeatedly up to MAX_STEPS_PER_SESSION (15) returns a helpful localized message
+    while len(split_res["steps"]) < 15:
+        curr_active = next(s for s in split_res["steps"] if s["status"] == "active")
+        resp = client.post(f"/api/sessions/{sid}/steps/{curr_active['id']}/stuck")
+        assert resp.status_code == 200
+        split_res = resp.json()
+
+    assert len(split_res["steps"]) == 15
+    final_active = next(s for s in split_res["steps"] if s["status"] == "active")
+    limit_resp = client.post(f"/api/sessions/{sid}/steps/{final_active['id']}/stuck")
+    assert limit_resp.status_code == 400
+    assert "максимальну деталізацію" in limit_resp.json()["detail"]

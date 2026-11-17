@@ -957,13 +957,18 @@ describe("WorkspacePage interactive Socratic flow", () => {
     expect(completeCalls[0].body.reflection_note).toBe("98pipi")
     expect(await screen.findByRole("heading", { name: "Дослідження помилки" })).toBeInTheDocument()
 
-    // Check Memory & Profile view has no internal stack jargon
+    // Check Memory & Profile view has no internal stack jargon and renders blocker explanation
     await userEvent.click(screen.getByRole("button", { name: /Пам'ять і профіль/i }))
     expect(
       await screen.findByRole("heading", {
         level: 2,
-        name: "Пам'ять агента та когнітивний профіль",
+        name: "Твій профіль і збережений досвід",
       }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Що найчастіше гальмує" })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: /Що це таке\?/i }))
+    expect(
+      screen.getByRole("region", { name: /Як працює показник «Що найчастіше гальмує»/i }),
     ).toBeInTheDocument()
     const mainEl = screen.getByRole("main")
     expect(mainEl.textContent).not.toMatch(/Titan|pgvector|Aurora|Bedrock/i)
@@ -1328,5 +1333,154 @@ describe("WorkspacePage interactive Socratic flow", () => {
     expect(parsed.next[0].text_excerpt).toBe("helloworld!")
     expect(parsed.next[1].name).toBe("page.html")
     expect(parsed.next[1].text_excerpt).toBeUndefined()
+  })
+
+  it("shows step breakdown limit notice at 15 steps, renders chat completion banner, and unlocks Sharp Pro audio/video", async () => {
+    const fifteenSteps = Array.from({ length: 15 }, (_, idx) => ({
+      id: `step-${idx + 1}`,
+      parent_step_id: idx > 0 ? "step-1" : null,
+      order_index: idx + 1,
+      title: `Мікрокрок ${idx + 1}`,
+      description: "Коротка дія на 2 хвилини",
+      duration_minutes: 2,
+      timer_mode: "micro",
+      status: idx === 0 ? "active" : "locked",
+      pomodoro_seconds: 0,
+      reflection_note: null,
+      completed_at: null,
+    }))
+
+    let currentTier: "free" | "pro" = "free"
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString()
+        if (url.endsWith("/api/me/subscription") && init?.method === "POST") {
+          const body = JSON.parse(String(init.body ?? "{}")) as { tier: "free" | "pro" }
+          currentTier = body.tier
+          return new Response(
+            JSON.stringify({
+              id: "u1",
+              email: "dev@sharp.local",
+              name: "Dev",
+              cognitive_profile: {
+                blocker_counts: { overwhelm: 2 },
+                effective_frameworks: { first_principles: 2 },
+                completed_steps: 2,
+                completed_sessions: 1,
+                total_focus_seconds: 300,
+                current_streak: 1,
+              },
+              subscription: {
+                tier: currentTier,
+                audio_coach_enabled: currentTier === "pro",
+                video_explainer_enabled: currentTier === "pro",
+              },
+              auth_enabled: false,
+              created_at: new Date().toISOString(),
+            }),
+          )
+        }
+        if (url.endsWith("/api/me")) {
+          return new Response(
+            JSON.stringify({
+              id: "u1",
+              email: "dev@sharp.local",
+              name: "Dev",
+              cognitive_profile: {
+                blocker_counts: { overwhelm: 2 },
+                effective_frameworks: { first_principles: 2 },
+                completed_steps: 2,
+                completed_sessions: 1,
+                total_focus_seconds: 300,
+                current_streak: 1,
+              },
+              subscription: {
+                tier: currentTier,
+                audio_coach_enabled: currentTier === "pro",
+                video_explainer_enabled: currentTier === "pro",
+              },
+              auth_enabled: false,
+              created_at: new Date().toISOString(),
+            }),
+          )
+        }
+        if (url.endsWith("/api/frameworks")) return new Response(JSON.stringify(mockFrameworks))
+        if (url.endsWith("/api/memory")) {
+          return new Response(JSON.stringify({ cognitive_profile: {}, memories: [] }))
+        }
+        if (url.endsWith("/api/sessions/sess-15")) {
+          return new Response(
+            JSON.stringify({
+              ...mockSessionTurn1,
+              id: "sess-15",
+              title: "Складна задача з 15 кроками",
+              phase: "executing",
+              steps: fifteenSteps,
+              messages: [
+                {
+                  id: "msg-done",
+                  role: "assistant",
+                  content: "Домовилися. Питання закрите — переходь до першого кроку.",
+                  ai_source: "bedrock",
+                  conversation_complete: true,
+                  created_at: new Date().toISOString(),
+                },
+              ],
+            }),
+          )
+        }
+        if (url.endsWith("/api/sessions")) {
+          return new Response(
+            JSON.stringify([
+              {
+                ...mockSessionTurn1,
+                id: "sess-15",
+                title: "Складна задача з 15 кроками",
+                phase: "executing",
+                active_step: fifteenSteps[0],
+              },
+            ]),
+          )
+        }
+        return new Response("Not found", { status: 404 })
+      }),
+    )
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <WorkspacePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const sidebar = await screen.findByRole("complementary")
+    await userEvent.click(
+      await within(sidebar).findByRole("button", { name: /^Складна задача з 15 кроками/i }),
+    )
+
+    // Step limit notice is shown clearly in PomodoroStepRunner
+    expect(
+      await screen.findByText(/Досягнуто максимальну деталізацію \(15 кроків\)/i),
+    ).toBeInTheDocument()
+
+    // Open assistant drawer -> shows conversation completion banner
+    await userEvent.click(screen.getByRole("button", { name: /^Асистент/i }))
+    expect(
+      await screen.findByText(/Питання розібрано — час переходити до дії/i),
+    ).toBeInTheDocument()
+
+    // Open Audio Coach modal from step runner and unlock Sharp Pro
+    await userEvent.click(screen.getByRole("button", { name: /Аудіо-розмова/i }))
+    const modal = await screen.findByRole("dialog", {
+      name: /Sharp Pro: Аудіо- та Відео-розбір складних кроків/i,
+    })
+    await userEvent.click(within(modal).getByRole("button", { name: /Активувати Sharp Pro/i }))
+    expect(
+      await within(modal).findByText(/Голосовий розбір кроку \(AI Audio Coach\)/i),
+    ).toBeInTheDocument()
   })
 })

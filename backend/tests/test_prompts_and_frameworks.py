@@ -42,7 +42,9 @@ def test_prompt_composer_includes_all_four_layers() -> None:
         cognitive_profile={"blocker_counts": {"perfectionism": 3}, "effective_frameworks": {"inversion": 2}},
     )
     assert "REFUSE READY-MADE SOLUTIONS" in prompt
-    assert "DEHUMANIZED PRECISION & ANTI-EMPATHY" in prompt
+    assert "PLAIN CONVERSATIONAL LANGUAGE & ZERO FLUFF" in prompt
+    assert "розбий на кроки" in prompt
+    assert "визнач, що має вийти в кінці" in prompt
     assert "Я тебе розумію" in prompt
     assert "I understand" in prompt
     assert "ACTIVE FRAMEWORK: Inversion (Pre-Mortem)" in prompt
@@ -107,15 +109,48 @@ def test_prompt_composer_compose_chat_includes_context_and_conversational_rules(
         memories=[],
         cognitive_profile=None,
     )
-    assert "dehumanized cognitive tool" in prompt
-    assert "DEHUMANIZED TONE" in prompt
+    assert "LIVE CONVERSATIONAL LANGUAGE & ZERO FLUFF" in prompt
     assert "RESPONSE STRUCTURE" in prompt
+    assert "розбий на кроки" in prompt
+    assert "[CONVERSATION_COMPLETE]" in prompt
     assert "Я тебе розумію" in prompt
     assert "I understand" in prompt
     assert "я хочу робити ігри в роблокс" in prompt
     assert "Яка мова?" in prompt
     assert "Перший прототип оббі" in prompt
     assert "Ukrainian (Українська)" in prompt
+
+
+def test_crisis_fast_response_overrides_standard_mode() -> None:
+    uk_crisis = bedrock_service.generate_chat_reply(
+        problem="Важкий день",
+        phase="chat",
+        framework_id="socratic",
+        language="uk",
+        messages=[{"role": "user", "content": "Я не хочу жити і думаю про самогубство"}],
+        turns=[],
+        steps=[],
+        memories=[],
+        cognitive_profile=None,
+    )
+    assert uk_crisis.ai_source == "crisis_support"
+    assert uk_crisis.conversation_complete is True
+    assert "7333" in uk_crisis.reply
+    assert "116 123" in uk_crisis.reply
+    assert "findahelpline.com" in uk_crisis.reply
+
+    socratic_crisis = bedrock_service.generate_socratic_turn(
+        problem="Хочу вбити себе, селфхарм",
+        history=[],
+        framework_id="socratic",
+        language="uk",
+        turn_number=1,
+        memories=[],
+        cognitive_profile=None,
+    )
+    assert socratic_crisis.ai_source == "crisis_support"
+    assert socratic_crisis.guardrail_triggered is True
+    assert "7333" in socratic_crisis.question
 
 
 def test_compose_chat_system_excludes_untrusted_user_data_and_isolates_delimiters() -> None:

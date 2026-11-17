@@ -34,3 +34,9 @@ def test_vector_memory_recall_surfaces_similar_past_session(client: TestClient) 
     s2 = s2_resp.json()
     assert len(s2["memory_insight"]) >= 1
     assert s2["memory_insight"][0]["similarity"] > 0.15
+
+    # Deleting session 1 synchronously deletes its MemoryEmbedding from pgvector / memory overview
+    del_resp = client.delete(f"/api/sessions/{s1['id']}")
+    assert del_resp.status_code == 204
+    mem_overview = client.get("/api/memory").json()
+    assert mem_overview["memories"] == []

@@ -43,6 +43,7 @@ _PROMPT_LEAK_MARKERS = (
     "CORE_CONSTITUTION",
     "SYSTEM_SECURITY_DIRECTIVE",
     "DEHUMANIZED PRECISION & ANTI-EMPATHY",
+    "PLAIN CONVERSATIONAL LANGUAGE & ZERO FLUFF",
     "PROMPT CONFIDENTIALITY & INJECTION DEFENSE",
     "PHASE CONTRACT (",
     "guardrail_triggered=true",
@@ -52,10 +53,102 @@ _PROMPT_LEAK_MARKERS = (
     "<untrusted_user_problem>",
     "<untrusted_attachment",
     "<untrusted_history>",
+    "<untrusted_chat>",
     "<untrusted_memory>",
     "You are SHARP — a dehumanized cognitive instrument",
+    "You are SHARP — a direct, practical thinking partner",
     "You are SHARP's analytical chat module",
+    "You are SHARP's practical chat assistant",
 )
+
+CRISIS_PATTERNS = re.compile(
+    r"(самогубств|суїцид|вбити\s+себе|накласти\s+на\s+себе\s+руки|порізати\s+себе|"
+    r"селфхарм|не\s+хочу\s+жити|хочу\s+померти|піти\s+з\s+життя|кінець\s+життю|"
+    r"фізичне\s+насильство|домашнє\s+насильство|мене\s+б['’]?ють|загроза\s+життю|гостра\s+небезпека|"
+    r"suicid|kill\s+myself|end\s+my\s+life|want\s+to\s+die|self[\s-]?harm|hurt\s+myself|cut\s+myself|"
+    r"domestic\s+violence|physical\s+abuse|hitting\s+me|immediate\s+danger|acute\s+danger)",
+    re.IGNORECASE,
+)
+
+SIMPLE_TASK_PATTERNS = re.compile(
+    r"(\b(?:написати|відправити|надіслати)\s+(?:коротк\S+\s+)?(?:лист|повідомлення|імейл|email)|"
+    r"\b(?:прибрати|розсортувати|очистити|впорядкувати)\s+(?:стіл|файли|папку|пошту|вкладк)|"
+    r"\b(?:зробити|створити)\s+(?:коміт|бекап|резервну\s+копію|список\s+покупок|таблицю\s+витрат)|"
+    r"\b(?:оформити|відформатувати)\s+(?:список\s+літератури|документ|таблицю|слайди)|"
+    r"\b(?:зателефонувати|подзвонити|записатися\s+до)|"
+    r"\b(?:send|write)\s+a?\s*(?:short\s+)?(?:email|message|note)\b|"
+    r"\b(?:clean\s+up|organize|sort)\s+(?:my\s+)?(?:desk|files|folder|inbox|tabs)\b|"
+    r"\b(?:commit\s+and\s+push|format\s+the\s+table|create\s+a\s+backup)\b)",
+    re.IGNORECASE,
+)
+
+COMPLEX_OR_BLOCKED_PATTERNS = re.compile(
+    r"(курсов|диплом|лабораторн|проєкт|проект|архітектур|патерн|дисертац|"
+    r"боюсь|застряг|не\s+можу|відкладаю|страх|не\s+знаю\s+з\s+чого|прокрастин|ідеальн|туман|важко|"
+    r"thesis|coursework|dissertation|architecture|procrastinat|afraid|stuck|overwhelm|paralyz)",
+    re.IGNORECASE,
+)
+
+USER_CLOSURE_RE = re.compile(
+    r"(\b(?:дякую|спасибі)(?:[,!.\s]+(?:все\s+)?(?:зрозуміло|ясно|достатньо|пішов\s+робити|починаю))?|"
+    r"\b(?:все\s+зрозуміло|все\s+ясно|питань\s+більше\s+немає|пішов\s+робити|біжу\s+робити|достатньо,\s*починаю)|"
+    r"\b(?:thanks|thank\s+you)(?:[,!.\s]+(?:got\s+it|all\s+clear|makes\s+sense|i['’]?ll\s+start))?|"
+    r"\b(?:got\s+it,\s*thanks|all\s+clear\s+now|no\s+more\s+questions|i['’]?ll\s+start\s+now))\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+
+CHAT_COMPLETION_MARKER = "[CONVERSATION_COMPLETE]"
+
+
+def detect_crisis(text: str | None) -> bool:
+    if not text:
+        return False
+    return bool(CRISIS_PATTERNS.search(text))
+
+
+def build_crisis_response(language: str) -> str:
+    if language == "uk":
+        return (
+            "Мені дуже шкода, що тобі зараз так важко. Будь ласка, не залишайся з цим наодинці — "
+            "звернися по живу підтримку просто зараз:\n\n"
+            "• **7333** — Lifeline Ukraine (цілодобова безкоштовна лінія психологічної підтримки та "
+            "запобігання самогубствам)\n"
+            "• **0 800 500 335** або **116 123** (з мобільного) — Ла Страда-Україна (гаряча лінія з протидії "
+            "домашньому насильству та кризової підтримки)\n"
+            "• **112** або **103** — екстрені служби в Україні, якщо є безпосередня загроза життю\n"
+            "• **Міжнародні лінії:** **988** (США та Канада), **112** (ЄС), або знайди лінію на "
+            "**https://findahelpline.com**\n\n"
+            "Напиши або подзвони хоча б на один із цих номерів чи близькій людині поруч."
+        )
+    return (
+        "I am really sorry you are going through this right now. Please do not carry this alone — "
+        "reach out for immediate human support:\n\n"
+        "• **Ukraine:** **7333** (Lifeline Ukraine, 24/7 crisis support), **116 123** or **0 800 500 335** "
+        "(La Strada Ukraine — violence & crisis hotline), **112** / **103** (emergency services)\n"
+        "• **US & Canada:** Call or text **988** (Suicide & Crisis Lifeline, 24/7)\n"
+        "• **UK & EU:** **111** / **999** (UK) or **112** (Europe emergency)\n"
+        "• **Worldwide directory:** **https://findahelpline.com**\n\n"
+        "Please call or message one of these lines or a trusted person near you right now."
+    )
+
+
+def _is_simple_concrete_problem(
+    problem: str,
+    attachments: list[dict[str, Any]] | None = None,
+) -> bool:
+    cleaned = problem.strip()
+    if len(cleaned) < 8 or len(cleaned) > 260:
+        return False
+    if attachments:
+        return False
+    if (
+        CHEAT_PATTERNS.search(cleaned)
+        or PROMPT_EXTRACTION_RE.search(cleaned)
+        or CRISIS_PATTERNS.search(cleaned)
+        or COMPLEX_OR_BLOCKED_PATTERNS.search(cleaned)
+    ):
+        return False
+    return bool(SIMPLE_TASK_PATTERNS.search(cleaned))
 
 
 def _contains_prompt_leakage(text: str | None) -> bool:
@@ -81,12 +174,14 @@ BLOCKERS_ENUM = [
 
 
 class SocraticTurnResult(BaseModel):
-    question: str = Field(min_length=5, max_length=600)
+    question: str = Field(min_length=5, max_length=1200)
     options: list[QuestionOption] = Field(min_length=3, max_length=4)
     detected_blocker: BlockerType
     recommended_framework: FrameworkId
     framework_reason: str = Field(min_length=5, max_length=400)
     guardrail_triggered: bool = False
+    is_simple_problem: bool = False
+    direct_response: str | None = Field(default=None, max_length=600)
     ai_source: str = "bedrock"
 
 
@@ -112,19 +207,20 @@ class MicroBreakdownResult(BaseModel):
 class ChatReplyResult(BaseModel):
     reply: str = Field(min_length=1, max_length=6000)
     ai_source: str = "bedrock"
+    conversation_complete: bool = False
 
 
 SOCRATIC_TOOL_SPEC = {
     "toolSpec": {
         "name": "record_socratic_turn",
-        "description": "Emit one sharp Socratic question with 3-4 clickable options and blocker.",
+        "description": "Emit one sharp Socratic question with 3-4 options, blocker, and complexity check.",
         "inputSchema": {
             "json": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "Max 2 crisp sentences. Zero pleasantries.",
+                        "description": "Max 2 crisp sentences in plain conversational language.",
                     },
                     "options": {
                         "type": "array",
@@ -144,6 +240,14 @@ SOCRATIC_TOOL_SPEC = {
                     "recommended_framework": {"type": "string", "enum": list(FRAMEWORKS.keys())},
                     "framework_reason": {"type": "string"},
                     "guardrail_triggered": {"type": "boolean"},
+                    "is_simple_problem": {
+                        "type": "boolean",
+                        "description": "True if task is simple/concrete enough to jump straight to a plan.",
+                    },
+                    "direct_response": {
+                        "type": "string",
+                        "description": "Short concrete answer without water when is_simple_problem is true.",
+                    },
                 },
                 "required": [
                     "question",
@@ -408,44 +512,44 @@ FALLBACK_BANK: dict[str, dict[str, dict[str, Any]]] = {
     "uk": {
         "guardrail": {
             "q": (
-                "Відхилено: готового рішення не буде. "
-                "На якому саме вузлі задачі ви зупинились — ідея, структура чи технічний старт?"
+                "Готового рішення замість тебе не буде — розберімо задачу разом. "
+                "Де саме зараз затик: в ідеї, плані чи першому кроці?"
             ),
             "opts": [
-                ("Немає чіткої структури", "Не знаю, з яких частин складається результат"),
-                ("Застряг на першому кроці", "Є ідея, але не можу змусити себе почати"),
-                ("Не вистачає конкретного концепту", "Потрібно зрозуміти один вузол теорії"),
-                ("Боюсь зробити погану чернетку", "Перфекціонізм блокує старт"),
+                ("Немає чіткого плану", "Не знаю, з яких частин має складатися результат"),
+                ("Важко почати перший крок", "Є ідея, але не можу сісти й почати"),
+                ("Бракує розуміння теми", "Треба розібрати одне конкретне поняття"),
+                ("Страшно зробити неідеально", "Перфекціонізм гальмує старт"),
             ],
         },
         "turn_1": {
             "opts": [
-                ("Занадто велика і без чітких меж", "Не розумію, де мінімальний достатній результат"),
-                ("Страх чистого аркуша / перфекціонізм", "Хочу зробити ідеально з першої спроби"),
-                ("Прогалина в знаннях чи умовах", "Один елемент умови досі туманний"),
-                ("Низька енергія / інерція старту", "Важко навіть відкрити файл чи робочий простір"),
+                ("Завеликий обсяг і розмиті межі", "Незрозуміло, який вигляд має готовий мінімум"),
+                ("Перфекціонізм / страх чистого аркуша", "Хочу зробити ідеально з першої спроби"),
+                ("Бракує знань або деталей умови", "Одна частина задачі досі незрозуміла"),
+                ("Втома / важко розкачатись", "Важко навіть відкрити файл чи робочу програму"),
             ],
         },
         "turn_2": {
             "q": (
-                "Який мінімальний артефакт (чернетка, 1 функція, 3 тези) доведе, "
-                "що кригу зламано за найближчі 15 хвилин?"
+                "Який найменший результат (чернетка, 1 функція, 3 тези) покаже, "
+                "що ти зрушив задачу з місця за найближчі 15 хвилин?"
             ),
             "opts": [
-                ("Грубий каркас або список з 3–5 пунктів", "Без шліфування тексту чи коду"),
-                ("Один робочий приклад або прототип", "Мінімальна перевірка ідеї на практиці"),
-                ("Виписати 2 невідомі питання і перевірити", "Закрити головний пробіл у теорії"),
+                ("Короткий план із 3–5 пунктів", "Без вичитки тексту чи шліфування коду"),
+                ("Один робочий приклад або чернетка", "Швидка перевірка головної ідеї на практиці"),
+                ("Виписати 2 незрозумілі питання", "Закрити головну прогалину по темі"),
             ],
         },
         "turn_3": {
             "q": (
-                "Якщо дозволити собі зробити версію v0 грубою, але завершеною — "
-                "який перший фізичний крок на 2 хвилини?"
+                "Якщо дозволити собі зробити першу версію простою й чорновою — "
+                "який перший фізичний крок зробиш за 2 хвилини?"
             ),
             "opts": [
-                ("Створити файл і вписати заголовки блоків", "120 секунд, нуль оцінки якості"),
-                ("Зібрати вхідні дані в один список", "Відділити збір фактів від виконання"),
-                ("Написати 3 чернові речення / псевдокод", "Зафіксувати думку до редагування"),
+                ("Створити файл і написати заголовки", "2 хвилини, без жодної оцінки якості"),
+                ("Виписати вхідні дані в один список", "Спочатку зібрати факти, потім робити"),
+                ("Накидати 3 речення або псевдокод", "Записати головну думку без редагування"),
             ],
         },
     },
@@ -496,6 +600,41 @@ FALLBACK_BANK: dict[str, dict[str, dict[str, Any]]] = {
 }
 
 
+def _crisis_socratic_turn(language: str, framework_id: str) -> SocraticTurnResult:
+    lang = "uk" if language == "uk" else "en"
+    fw_id: FrameworkId = framework_id if framework_id in FRAMEWORKS else "socratic"  # type: ignore[assignment]
+    opts = (
+        [
+            ("Зателефонувати 7333 (Lifeline Ukraine)", "Цілодобова безкоштовна лінія підтримки 24/7"),
+            ("Зателефонувати 116 123 або 0 800 500 335", "Гаряча лінія Ла Страда-Україна"),
+            ("Написати близькій людині поруч", "Повідомити того, кому довіряєш, просто зараз"),
+            ("Викликати 112 або 103", "Якщо є безпосередня загроза життю чи безпеці"),
+        ]
+        if lang == "uk"
+        else [
+            ("Call 7333 (Lifeline Ukraine) or 988", "Free 24/7 crisis support line"),
+            ("Call 116 123 / 0 800 500 335", "La Strada helpline for violence & crisis support"),
+            ("Message a trusted person nearby", "Reach out to someone who can be with you now"),
+            ("Call 112 / 911 / 999", "If you are in immediate physical danger"),
+        ]
+    )
+    reason = (
+        "Режим швидкого реагування: безпека та жива підтримка понад усе."
+        if lang == "uk"
+        else "Crisis fast-response mode: immediate safety and human support come first."
+    )
+    return SocraticTurnResult(
+        question=build_crisis_response(lang),
+        options=_opts(opts),
+        detected_blocker="overwhelm",
+        recommended_framework=fw_id,
+        framework_reason=reason,
+        guardrail_triggered=True,
+        is_simple_problem=False,
+        ai_source="crisis_support",
+    )
+
+
 def _fallback_socratic_turn(
     *,
     problem: str,
@@ -504,11 +643,13 @@ def _fallback_socratic_turn(
     language: str,
     turn_number: int,
     attachments: list[dict[str, Any]] | None = None,
+    chat_messages: list[dict[str, str]] | None = None,
 ) -> SocraticTurnResult:
     att_snippets = " ".join(
         f"{item.get('name', '')} {str(item.get('text_excerpt') or '')[:800]}" for item in (attachments or [])
     )
-    combined = f"{problem} {att_snippets} " + " ".join(t["answer"] for t in history)
+    chat_snippets = " ".join(str(m.get("content") or "") for m in (chat_messages or []))
+    combined = f"{problem} {att_snippets} {chat_snippets} " + " ".join(t["answer"] for t in history)
     guardrail = bool(CHEAT_PATTERNS.search(combined))
     blocker = _infer_blocker(combined)
     requested_fw = framework_id if (history or framework_id != "socratic") else None
@@ -517,10 +658,11 @@ def _fallback_socratic_turn(
     fw_name = get_framework(fw_id).item.name.uk if lang == "uk" else get_framework(fw_id).item.name.en
     bank = FALLBACK_BANK[lang]
     first_file = str(attachments[0].get("name") or "") if attachments else ""
+    first_excerpt = str(attachments[0].get("text_excerpt") or "").strip()[:120] if attachments else ""
 
     if guardrail and turn_number == 1:
         reason = (
-            f"Активовано анти-рішення бар'єр і метод «{fw_name}»."
+            f"Увімкнено захист від готових відповідей і метод «{fw_name}»."
             if lang == "uk"
             else f"Anti-solution guardrail triggered; applying {fw_name}."
         )
@@ -531,19 +673,51 @@ def _fallback_socratic_turn(
             recommended_framework=fw_id,
             framework_reason=reason,
             guardrail_triggered=True,
+            is_simple_problem=False,
+            ai_source="fallback",
+        )
+
+    if turn_number == 1 and _is_simple_concrete_problem(problem, attachments):
+        topic = problem.strip().splitlines()[0][:90]
+        direct_resp = (
+            f"Задача «{topic}» проста й конкретна — одразу переходимо до короткого плану дій."
+            if lang == "uk"
+            else f"Task '{topic}' is straightforward and concrete — jumping straight to an action plan."
+        )
+        return SocraticTurnResult(
+            question=direct_resp,
+            options=_opts(bank["turn_1"]["opts"]),
+            detected_blocker="unclear_scope",
+            recommended_framework="two_min_rule",
+            framework_reason=direct_resp,
+            guardrail_triggered=False,
+            is_simple_problem=True,
+            direct_response=direct_resp,
             ai_source="fallback",
         )
 
     if turn_number == 1:
-        file_hint_uk = f" (файл «{first_file}»)" if first_file else ""
-        file_hint_en = f" (file '{first_file}')" if first_file else ""
+        file_hint_uk = (
+            f" (звірившись із файлом «{first_file}»: {first_excerpt[:60]})"
+            if first_file and first_excerpt
+            else f" (файл «{first_file}»)"
+            if first_file
+            else ""
+        )
+        file_hint_en = (
+            f" (checked file '{first_file}': {first_excerpt[:60]})"
+            if first_file and first_excerpt
+            else f" (file '{first_file}')"
+            if first_file
+            else ""
+        )
         q = (
-            f"Застосовано «{fw_name}»{file_hint_uk}. Що саме блокує негайний старт цієї задачі просто зараз?"
+            f"Метод «{fw_name}»{file_hint_uk}. Що саме заважає почати цю задачу просто зараз?"
             if lang == "uk"
             else f"Using {fw_name}{file_hint_en}. What exact friction stops you from starting this task now?"
         )
         reason = (
-            f"Вибрано «{fw_name}» відповідно до типу когнітивного блоку ({blocker})."
+            f"Обрано «{fw_name}» під твій поточний затик ({blocker})."
             if lang == "uk"
             else f"Selected {fw_name} based on detected blocker ({blocker})."
         )
@@ -559,7 +733,7 @@ def _fallback_socratic_turn(
 
     if turn_number == 2:
         reason = (
-            f"Звужуємо масштаб задачі в межах методу «{fw_name}»."
+            f"Звужуємо задачу до конкретного результату за методом «{fw_name}»."
             if lang == "uk"
             else f"Compressing scope into a verifiable output via {fw_name}."
         )
@@ -574,7 +748,7 @@ def _fallback_socratic_turn(
         )
 
     reason = (
-        "Фіналізація порогу старту перед генерацією покрокового плану."
+        "Визначаємо простий перший крок на 2 хвилини перед створенням плану."
         if lang == "uk"
         else "Locking in a low-friction Step 1 before generating the step tree."
     )
@@ -595,61 +769,70 @@ def _fallback_action_plan(
     history: list[dict[str, str]],
     language: str,
     attachments: list[dict[str, Any]] | None = None,
+    chat_messages: list[dict[str, str]] | None = None,
+    direct_response: str | None = None,
 ) -> ActionPlanResult:
-    blocker = _infer_blocker(problem + " " + " ".join(t["answer"] for t in history))
+    chat_text = " ".join(str(m.get("content") or "") for m in (chat_messages or []))
+    blocker = _infer_blocker(problem + " " + chat_text + " " + " ".join(t["answer"] for t in history))
     topic = problem.strip().splitlines()[0][:65]
-    last_answer = history[-1]["answer"][:80] if history else topic
+    last_answer = (
+        history[-1]["answer"][:80]
+        if history
+        else (str(chat_messages[-1].get("content") or "")[:80] if chat_messages else topic)
+    )
     first_file = str(attachments[0].get("name") or "") if attachments else ""
+    first_excerpt = str(attachments[0].get("text_excerpt") or "").strip()[:90] if attachments else ""
 
     if language == "uk":
         step1_target = f"«{first_file}»" if first_file else f"«{topic}»"
+        excerpt_note = f" (з урахуванням змісту: {first_excerpt})" if first_excerpt else ""
+        summary_text = (
+            direct_response
+            if direct_response
+            else f"Короткий план старту для «{topic}»: починаємо з простої дії ({last_answer})"
+        )
         return ActionPlanResult(
-            summary=f"Фокус на старті «{topic}» через мінімальний артефакт: {last_answer}",
+            summary=summary_text[:500],
             detected_blocker=blocker,
             steps=[
                 ActionStepDraft(
-                    title=f"Крок активації: відкрити {step1_target} і зафіксувати каркас (2–3 хв)",
+                    title=f"Перший крок: відкрити {step1_target} і накидати 3 пункти (2–3 хв)",
                     description=(
-                        f"Відкрийте чистий документ/IDE для {step1_target} і запишіть лише "
-                        "3 заголовки або вхідні умови без редагування."
+                        f"Відкрий {step1_target}{excerpt_note} і запиши "
+                        "3 короткі пункти або вхідні дані без вичитки."
                     ),
                     duration_minutes=3,
                     timer_mode="micro",
                 ),
                 ActionStepDraft(
-                    title="Чорновий зріз v0 для центрального вузла",
+                    title="Зробити чорновий варіант головної частини",
                     description=(
-                        f"Реалізуйте або сформулюйте лише один ключовий елемент "
-                        f"({last_answer[:55]}) у грубому вигляді."
+                        f"Напиши або збери лише один головний блок "
+                        f"({last_answer[:55]}) у простому чорновому вигляді."
                     ),
                     duration_minutes=10,
                     timer_mode="sprint",
                 ),
                 ActionStepDraft(
-                    title="Перевірка проти критерію готовності та прогалин",
+                    title="Перевірити, що вийшло, і закрити пробіли",
                     description=(
-                        "Звірте чернетку v0 з початковими вимогами і випишіть 1–2 "
-                        "конкретні питання, якщо щось не сходиться."
+                        "Звір чорновий варіант із тим, що має вийти в кінці, та випиши 1–2 конкретні правки."
                     ),
                     duration_minutes=10,
                     timer_mode="sprint",
-                ),
-                ActionStepDraft(
-                    title="Фінальне доопрацювання та фіксація результату",
-                    description=(
-                        "Доведіть чернетку до робочого стану в одному Pomodoro-блоці "
-                        "без повернення до початку."
-                    ),
-                    duration_minutes=25,
-                    timer_mode="pomodoro",
                 ),
             ],
             ai_source="fallback",
         )
 
     en_target = f"'{first_file}'" if first_file else f"'{topic}'"
+    en_summary = (
+        direct_response
+        if direct_response
+        else f"Break start paralysis on '{topic}' via minimal artifact: {last_answer}"
+    )
     return ActionPlanResult(
-        summary=f"Break start paralysis on '{topic}' via minimal artifact: {last_answer}",
+        summary=en_summary[:500],
         detected_blocker=blocker,
         steps=[
             ActionStepDraft(
@@ -675,40 +858,56 @@ def _fallback_action_plan(
                 duration_minutes=10,
                 timer_mode="sprint",
             ),
-            ActionStepDraft(
-                title="Focused execution pass",
-                description="Close remaining gaps in one timed Pomodoro block without scope creep.",
-                duration_minutes=25,
-                timer_mode="pomodoro",
-            ),
         ],
         ai_source="fallback",
     )
 
 
-def _fallback_micro_breakdown(step_title: str, language: str) -> MicroBreakdownResult:
+def _fallback_micro_breakdown(
+    step_title: str,
+    language: str,
+    attachments: list[dict[str, Any]] | None = None,
+    chat_messages: list[dict[str, str]] | None = None,
+) -> MicroBreakdownResult:
     short_title = step_title[:42]
+    first_file = str(attachments[0].get("name") or "") if attachments else ""
+    chat_hint = ""
+    if chat_messages:
+        last_user_chat = next(
+            (str(m.get("content") or "").strip() for m in reversed(chat_messages) if m.get("role") == "user"),
+            "",
+        )
+        if last_user_chat:
+            chat_hint = (
+                f" (враховуючи з чату: «{last_user_chat[:50]}»)"
+                if language == "uk"
+                else f" (from chat: '{last_user_chat[:50]}')"
+            )
+
     if language == "uk":
+        file_ref = f" та файл «{first_file}»" if first_file else ""
         return MicroBreakdownResult(
             substeps=[
                 ActionStepDraft(
-                    title=f"Мікро-дія 1: ізолювати одне вікно для «{short_title}»",
-                    description="Закрийте зайві вкладки, залиште лише 1 файл/інструмент перед очима.",
+                    title=f"Мікродія 1: відкрити лише одне вікно для «{short_title}»",
+                    description=(
+                        f"Закрий зайві вкладки, залиш перед очима тільки робоче вікно{file_ref}{chat_hint}."
+                    ),
                     duration_minutes=1,
                     timer_mode="micro",
                 ),
                 ActionStepDraft(
-                    title="Мікро-дія 2: зафіксувати перший рядок / тезу",
+                    title="Мікродія 2: написати перший чорновий рядок",
                     description=(
-                        "Запишіть один найпростіший рядок чи формулу навіть із помилкою — "
-                        "головне порушити тишу."
+                        "Запиши один найпростіший рядок, тезу чи приклад навіть із помилками — "
+                        "головне зрушити з місця."
                     ),
                     duration_minutes=2,
                     timer_mode="micro",
                 ),
                 ActionStepDraft(
-                    title="Мікро-дія 3: перевірити міні-прогрес",
-                    description="Переконайтеся, що артефакт існує, і повертайтесь до основного таймера.",
+                    title="Мікродія 3: зберегти чернетку й рухатися далі",
+                    description="Збережи те, що вийшло, і переходь до наступного кроку за таймером.",
                     duration_minutes=2,
                     timer_mode="sprint",
                 ),
@@ -716,11 +915,12 @@ def _fallback_micro_breakdown(step_title: str, language: str) -> MicroBreakdownR
             ai_source="fallback",
         )
 
+    file_ref_en = f" and file '{first_file}'" if first_file else ""
     return MicroBreakdownResult(
         substeps=[
             ActionStepDraft(
                 title=f"Micro-action 1: isolate one window for '{short_title}'",
-                description="Close extra tabs so only the single target file or prompt is visible.",
+                description=f"Close extra tabs so only the target file{file_ref_en} is visible{chat_hint}.",
                 duration_minutes=1,
                 timer_mode="micro",
             ),
@@ -751,7 +951,7 @@ def _prompt_injection_socratic_guardrail(
     fw_id: FrameworkId = framework_id if framework_id in FRAMEWORKS else "socratic"  # type: ignore[assignment]
     bank = FALLBACK_BANK[lang]
     reason = (
-        "Активовано захист системних інструкцій."
+        "Спрацював захист внутрішніх інструкцій."
         if lang == "uk"
         else "System instruction protection triggered."
     )
@@ -776,8 +976,12 @@ def generate_socratic_turn(
     memories: list[MemoryMatch],
     cognitive_profile: dict[str, Any] | None,
     attachments: list[dict[str, Any]] | None = None,
+    chat_messages: list[dict[str, str]] | None = None,
 ) -> SocraticTurnResult:
     latest_text = history[-1]["answer"] if history else problem
+    if detect_crisis(latest_text) or detect_crisis(problem):
+        return _crisis_socratic_turn(language=language, framework_id=framework_id)
+
     if PROMPT_EXTRACTION_RE.search(latest_text):
         return _prompt_injection_socratic_guardrail(
             framework_id=framework_id,
@@ -794,10 +998,13 @@ def generate_socratic_turn(
     )
     target_lang = target_language_label(language)
     user_msg = (
-        f"{_format_transcript(problem, history, attachments)}\n\n"
+        f"{_format_transcript(problem, history, attachments, chat_messages=chat_messages)}\n\n"
         f"Current turn: {turn_number} of 3. "
         f"REQUIRED OUTPUT LANGUAGE: {target_lang}. "
-        "Generate the next razor-sharp diagnostic question and 3-4 clickable options."
+        "Explicitly cross-check any <untrusted_attachment> and <untrusted_chat> facts. "
+        "If turn_number == 1 and the task is simple and concrete (not a cheat request), "
+        "set is_simple_problem=true and provide a short direct_response; otherwise generate "
+        "the next diagnostic question and 3-4 clickable options."
     )
     try:
         raw = _invoke_converse(
@@ -810,6 +1017,7 @@ def generate_socratic_turn(
         if (
             _contains_prompt_leakage(result.question)
             or _contains_prompt_leakage(result.framework_reason)
+            or _contains_prompt_leakage(result.direct_response)
             or any(
                 _contains_prompt_leakage(o.label) or _contains_prompt_leakage(o.hint) for o in result.options
             )
@@ -820,6 +1028,14 @@ def generate_socratic_turn(
                 language=language,
                 ai_source="guardrail",
             )
+        if (
+            turn_number == 1
+            and _is_simple_concrete_problem(problem, attachments)
+            and not result.guardrail_triggered
+        ):
+            result.is_simple_problem = True
+            if not result.direct_response:
+                result.direct_response = result.question
         return result
     except Exception as exc:
         if not settings.ai_fallback_enabled:
@@ -832,6 +1048,7 @@ def generate_socratic_turn(
             language=language,
             turn_number=turn_number,
             attachments=attachments,
+            chat_messages=chat_messages,
         )
 
 
@@ -845,6 +1062,7 @@ def generate_action_plan(
     cognitive_profile: dict[str, Any] | None,
     attachments: list[dict[str, Any]] | None = None,
     chat_messages: list[dict[str, str]] | None = None,
+    direct_response: str | None = None,
 ) -> ActionPlanResult:
     system_prompt = PromptComposer.compose(
         phase="plan",
@@ -857,8 +1075,9 @@ def generate_action_plan(
     user_msg = (
         f"{_format_transcript(problem, history, attachments, chat_messages=chat_messages)}\n\n"
         f"REQUIRED OUTPUT LANGUAGE: {target_lang}. "
-        "Convert the user's own answers and discussion into a 3-5 step micro-action plan. "
-        "Step 1 MUST be a 2-5 minute immediate physical kickstart."
+        "Explicitly ground the steps in any attached files (<untrusted_attachment>) and user facts. "
+        "Convert the user's own answers and discussion into a 3-5 step micro-action plan in simple "
+        "conversational language. Step 1 MUST be a 2-5 minute immediate physical kickstart."
     )
     try:
         raw = _invoke_converse(
@@ -877,7 +1096,11 @@ def generate_action_plan(
                 history=history,
                 language=language,
                 attachments=attachments,
+                chat_messages=chat_messages,
+                direct_response=direct_response,
             )
+        if direct_response and len(direct_response) >= 5:
+            result.summary = direct_response[:500]
         return result
     except Exception as exc:
         if not settings.ai_fallback_enabled:
@@ -888,7 +1111,16 @@ def generate_action_plan(
             history=history,
             language=language,
             attachments=attachments,
+            chat_messages=chat_messages,
+            direct_response=direct_response,
         )
+
+
+def _strip_completion_marker(text: str) -> tuple[str, bool]:
+    if CHAT_COMPLETION_MARKER in text:
+        cleaned = text.replace(CHAT_COMPLETION_MARKER, "").strip()
+        return cleaned, True
+    return text, False
 
 
 def _fallback_chat_reply(
@@ -899,22 +1131,61 @@ def _fallback_chat_reply(
     turns: list[dict[str, str]],
     steps: list[dict[str, Any]],
     language: str,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> ChatReplyResult:
     lang = "uk" if language == "uk" else "en"
+    if detect_crisis(user_message) or detect_crisis(problem):
+        return ChatReplyResult(
+            reply=build_crisis_response(lang),
+            ai_source="crisis_support",
+            conversation_complete=True,
+        )
+
     if PROMPT_EXTRACTION_RE.search(user_message):
         return ChatReplyResult(reply=_prompt_refusal_message(lang), ai_source="guardrail")
 
     topic = sanitize_prompt_label(problem.strip().splitlines()[0] if problem.strip() else "task", 80)
-    if CHEAT_PATTERNS.search(user_message):
+    first_file = str(attachments[0].get("name") or "") if attachments else ""
+    first_excerpt = str(attachments[0].get("text_excerpt") or "").strip()[:140] if attachments else ""
+    file_context_uk = (
+        f" За файлом «{first_file}» ({first_excerpt[:80]}):"
+        if first_file and first_excerpt
+        else f" (файл «{first_file}»)"
+        if first_file
+        else ""
+    )
+    file_context_en = (
+        f" From file '{first_file}' ({first_excerpt[:80]}):"
+        if first_file and first_excerpt
+        else f" (file '{first_file}')"
+        if first_file
+        else ""
+    )
+
+    if USER_CLOSURE_RE.search(user_message.strip()):
         reply = (
             (
-                f"Готовий розв'язок для «{topic}» не надається. Доступний формат: розбір конкретного "
-                "концепту, перевірка чернетки або локалізація вузла опору. Яка саме частина зараз зупиняє?"
+                f"Домовилися по «{topic}». Питання закрите — переходь до виконання першого кроку "
+                "за таймером або починай нову задачу."
             )
             if lang == "uk"
             else (
-                f"Full solutions for '{topic}' are withheld. Available mode: clarifying a specific "
-                "concept, auditing a draft, or isolating the exact bottleneck. Which piece is stuck?"
+                f"All set on '{topic}'. The question is resolved — move to executing Step 1 on "
+                "the timer or start a new task."
+            )
+        )
+        return ChatReplyResult(reply=reply, ai_source="fallback", conversation_complete=True)
+
+    if CHEAT_PATTERNS.search(user_message):
+        reply = (
+            (
+                f"Готового розв'язку для «{topic}» я не пишу. Можемо розібрати незрозуміле поняття, "
+                "перевірити твою чернетку або розбити задачу на кроки. На чому саме зараз застряг?"
+            )
+            if lang == "uk"
+            else (
+                f"Full solutions for '{topic}' are withheld. We can clarify a specific "
+                "concept, review your draft, or break the task into steps. Which piece is stuck?"
             )
         )
         return ChatReplyResult(reply=reply, ai_source="fallback")
@@ -926,12 +1197,12 @@ def _fallback_chat_reply(
         snippet = sanitize_prompt_label(user_message.strip(), 80)
         reply = (
             (
-                f"Активний крок («{step_title}»): мета — мінімальна чорнова дія без шліфування. "
-                f"Щодо «{snippet}» — у чому конкретний затор: стартова дія, інструмент чи теорія?"
+                f"Зараз активний крок «{step_title}»:{file_context_uk} мета — зробити просту чорнову дію. "
+                f"Щодо «{snippet}» — що саме гальмує: перший крок, інструмент чи бракує знань по темі?"
             )
             if lang == "uk"
             else (
-                f"Active step ('{step_title}'): target is a minimal rough action without polishing. "
+                f"Active step ('{step_title}'):{file_context_en} target is a minimal rough action. "
                 f"On '{snippet}' — is the block the first action, the tool, or the concept?"
             )
         )
@@ -941,26 +1212,46 @@ def _fallback_chat_reply(
         q = str(last_turn.get("question") or "")[:90]
         reply = (
             (
-                f"Питання («{q}») звужує задачу «{topic}» до першого кроку. "
-                "Без прив'язки до кнопок вкажіть одним реченням, яка умова чи деталь зараз неясна."
+                f"Питання («{q}») допомагає звузити «{topic}» до першого простого кроку.{file_context_uk} "
+                "Напиши одним реченням своїми словами, яка деталь зараз незрозуміла."
             )
             if lang == "uk"
             else (
-                f"Question ('{q}') narrows '{topic}' to a concrete first action. "
+                f"Question ('{q}') narrows '{topic}' to a concrete first action.{file_context_en} "
                 "Without picking a preset option, state in one sentence which constraint is unclear."
             )
         )
         return ChatReplyResult(reply=reply, ai_source="fallback")
 
+    if _is_simple_concrete_problem(user_message, attachments) or _is_simple_concrete_problem(
+        problem, attachments
+    ):
+        reply = (
+            (
+                f"Задача «{topic}» проста — ось короткий план без зайвих розмов:\n"
+                "1. Відкрий потрібне вікно чи чернетку й запиши головну тезу (2 хв).\n"
+                "2. Оформи основний текст або дію в один підхід (5 хв).\n"
+                "3. Перевір результат і надішли/збережи. Можеш одразу натиснути «Розбити на план кроків»."
+            )
+            if lang == "uk"
+            else (
+                f"Task '{topic}' is straightforward — here is a quick plan:\n"
+                "1. Open the target window/draft and write the core line (2m).\n"
+                "2. Complete the main action in one pass (5m).\n"
+                "3. Review and save/send. You can now switch to the step plan."
+            )
+        )
+        return ChatReplyResult(reply=reply, ai_source="fallback", conversation_complete=True)
+
     reply = (
         (
-            f"Зафіксовано: «{topic}». Вкажіть наступну операцію — розбір незрозумілого концепту, "
-            "порівняння підходів чи декомпозиція в покроковий план."
+            f"Задача: «{topic}».{file_context_uk} Напиши, що зробимо далі: розберемо незрозумілу частину, "
+            "порівняємо варіанти чи одразу розіб'ємо на прості кроки?"
         )
         if lang == "uk"
         else (
-            f"Logged: '{topic}'. Specify the next operation — unpack a concept, "
-            "compare approaches, or decompose into an action plan."
+            f"Task: '{topic}'.{file_context_en} What should we do next — unpack an unclear part, "
+            "compare options, or break it into action steps?"
         )
     )
     return ChatReplyResult(reply=reply, ai_source="fallback")
@@ -983,6 +1274,13 @@ def generate_chat_reply(
         (m["content"] for m in reversed(messages) if m.get("role") == "user"),
         problem,
     )
+    if detect_crisis(latest_user) or detect_crisis(problem):
+        return ChatReplyResult(
+            reply=build_crisis_response(language),
+            ai_source="crisis_support",
+            conversation_complete=True,
+        )
+
     if PROMPT_EXTRACTION_RE.search(latest_user):
         return ChatReplyResult(reply=_prompt_refusal_message(language), ai_source="guardrail")
 
@@ -1000,15 +1298,21 @@ def generate_chat_reply(
         cognitive_profile=cognitive_profile,
     )
     try:
-        reply = _invoke_converse_chat(
+        raw_reply = _invoke_converse_chat(
             system_prompt=system_prompt,
             messages=messages,
             context_block=context_block,
         )
-        if _contains_prompt_leakage(reply):
+        if _contains_prompt_leakage(raw_reply):
             logger.warning("Prompt leakage detected and scrubbed in chat output")
             return ChatReplyResult(reply=_prompt_refusal_message(language), ai_source="guardrail")
-        return ChatReplyResult(reply=reply, ai_source="bedrock")
+        cleaned_reply, marker_complete = _strip_completion_marker(raw_reply)
+        is_complete = marker_complete or bool(USER_CLOSURE_RE.search(latest_user.strip()))
+        return ChatReplyResult(
+            reply=cleaned_reply or raw_reply,
+            ai_source="bedrock",
+            conversation_complete=is_complete,
+        )
     except Exception as exc:
         if not settings.ai_fallback_enabled:
             raise
@@ -1020,6 +1324,7 @@ def generate_chat_reply(
             turns=turns,
             steps=steps,
             language=language,
+            attachments=attachments,
         )
 
 
@@ -1031,6 +1336,8 @@ def breakdown_stuck_step(
     framework_id: str,
     language: str,
     cognitive_profile: dict[str, Any] | None,
+    attachments: list[dict[str, Any]] | None = None,
+    chat_messages: list[dict[str, str]] | None = None,
 ) -> MicroBreakdownResult:
     system_prompt = PromptComposer.compose(
         phase="breakdown",
@@ -1040,17 +1347,29 @@ def breakdown_stuck_step(
         cognitive_profile=cognitive_profile,
     )
     target_lang = target_language_label(language)
+    att_block = _format_attachments(attachments)
+    chat_lines: list[str] = []
+    if chat_messages:
+        chat_lines.append("<untrusted_chat>")
+        for msg in chat_messages[-10:]:
+            speaker = "Assistant" if msg.get("role") == "assistant" else "User"
+            chat_lines.append(f"{speaker}: {sanitize_prompt_data(str(msg.get('content', '')))}")
+        chat_lines.append("</untrusted_chat>")
+    extra_context = "\n".join(part for part in [att_block, "\n".join(chat_lines)] if part)
+
     user_msg = (
         "<untrusted_user_problem>\n"
         f"{sanitize_prompt_data(problem)}\n"
         "</untrusted_user_problem>\n"
+        f"{extra_context + chr(10) if extra_context else ''}"
         f"ACTIVE FRAMEWORK: {sanitize_prompt_label(framework_id, 64)}\n"
         "<untrusted_steps>\n"
         f"STALLED STEP: {sanitize_prompt_data(step_title)}\n"
         f"DETAILS: {sanitize_prompt_data(step_description)}\n"
         "</untrusted_steps>\n"
         f"REQUIRED OUTPUT LANGUAGE: {target_lang}.\n"
-        f"Split this single step into 2-3 tiny 1-3 minute physical actions written strictly in {target_lang}."
+        f"Split this single step into 2-3 tiny 1-3 minute physical actions in {target_lang}, "
+        "taking into account any user facts from <untrusted_chat> and <untrusted_attachment>."
     )
     try:
         raw = _invoke_converse(
@@ -1065,10 +1384,20 @@ def breakdown_stuck_step(
             for s in result.substeps
         ):
             logger.warning("Prompt leakage detected and scrubbed in micro-breakdown output")
-            return _fallback_micro_breakdown(step_title=step_title, language=language)
+            return _fallback_micro_breakdown(
+                step_title=step_title,
+                language=language,
+                attachments=attachments,
+                chat_messages=chat_messages,
+            )
         return result
     except Exception as exc:
         if not settings.ai_fallback_enabled:
             raise
         logger.warning("Bedrock micro-breakdown fallback engaged: %s", exc, exc_info=True)
-        return _fallback_micro_breakdown(step_title=step_title, language=language)
+        return _fallback_micro_breakdown(
+            step_title=step_title,
+            language=language,
+            attachments=attachments,
+            chat_messages=chat_messages,
+        )

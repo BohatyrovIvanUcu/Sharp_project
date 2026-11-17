@@ -80,6 +80,7 @@ class SessionMessageOut(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     ai_source: str
+    conversation_complete: bool = False
     created_at: datetime
 
 
@@ -190,11 +191,25 @@ class CompleteStepIn(BaseModel):
     reflection_note: str | None = Field(default=None, max_length=500)
 
 
+SubscriptionTier = Literal["free", "pro"]
+
+
+class SubscriptionStatusOut(BaseModel):
+    tier: SubscriptionTier = "free"
+    audio_coach_enabled: bool = False
+    video_explainer_enabled: bool = False
+
+
+class UpdateSubscriptionIn(BaseModel):
+    tier: SubscriptionTier
+
+
 class UserProfileOut(BaseModel):
     id: str
     email: str
     name: str | None = None
     cognitive_profile: dict[str, Any]
+    subscription: SubscriptionStatusOut = Field(default_factory=SubscriptionStatusOut)
     auth_enabled: bool
     created_at: datetime
 

@@ -3,24 +3,31 @@ import {
   ArrowLeft,
   CheckCircle2,
   GitBranch,
+  Headphones,
+  Info,
   Lock,
   Pause,
   Play,
   RotateCcw,
   Scissors,
   Timer,
+  Video,
 } from "lucide-react"
 import { COPY } from "@/lib/i18n"
 import type { ActionStep, Language, ThinkingSession, TimerMode } from "@/types"
+
+export const MAX_STEPS_PER_SESSION = 15
 
 interface PomodoroStepRunnerProps {
   session: ThinkingSession
   lang: Language
   isSubmitting: boolean
+  stuckLimitMessage?: string | null
   onCompleteStep: (stepId: string, elapsedSeconds: number, reflectionNote?: string) => void
   onMarkStuck: (stepId: string) => void
   onNewTask: () => void
   onBackToQuestions?: () => void
+  onOpenMediaCoach?: (mediaType: "audio" | "video", stepTitle: string) => void
 }
 
 const TIMER_PRESETS: Record<TimerMode, { minutes: number; uk: string; en: string }> = {
@@ -39,16 +46,20 @@ export function PomodoroStepRunner({
   session,
   lang,
   isSubmitting,
+  stuckLimitMessage,
   onCompleteStep,
   onMarkStuck,
   onNewTask,
   onBackToQuestions,
+  onOpenMediaCoach,
 }: PomodoroStepRunnerProps) {
   const t = COPY[lang]
   const activeStep = useMemo(
     () => session.steps.find((s) => s.status === "active") ?? null,
     [session.steps],
   )
+  const isAtStepLimit = session.steps.length >= MAX_STEPS_PER_SESSION
+  const [showLimitNotice, setShowLimitNotice] = useState(false)
 
   const activeStepId = activeStep?.id
   const activeStepMinutes = activeStep?.duration_minutes
@@ -304,13 +315,54 @@ export function PomodoroStepRunner({
                   <button
                     type="button"
                     disabled={isSubmitting}
-                    onClick={() => onMarkStuck(activeStep.id)}
+                    onClick={() => {
+                      if (isAtStepLimit) {
+                        setShowLimitNotice(true)
+                        return
+                      }
+                      onMarkStuck(activeStep.id)
+                    }}
                     className="dusk-btn-ghost inline-flex items-center justify-center gap-1.5 border-accent-2/50 px-3.5 py-2 text-xs font-medium whitespace-nowrap text-accent-2 hover:border-accent-2 sm:text-sm"
                   >
                     <Scissors className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     <span>{t.stuckStep}</span>
                   </button>
+                  {onOpenMediaCoach && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpenMediaCoach("audio", activeStep.title)}
+                        className="dusk-btn-ghost inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap text-ink-2 hover:text-ink"
+                      >
+                        <Headphones className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                        <span>{t.audioCoachBtn}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenMediaCoach("video", activeStep.title)}
+                        className="dusk-btn-ghost inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap text-ink-2 hover:text-ink"
+                      >
+                        <Video className="h-3.5 w-3.5 shrink-0 text-accent-2" aria-hidden="true" />
+                        <span>{t.videoExplainerBtn}</span>
+                      </button>
+                    </>
+                  )}
                 </div>
+
+                {(isAtStepLimit || showLimitNotice || Boolean(stuckLimitMessage)) && (
+                  <div
+                    role="status"
+                    className="rounded-inner border border-accent-2/45 bg-apricot-tint/55 p-3.5 text-xs leading-relaxed text-ink"
+                  >
+                    <div className="flex items-center gap-1.5 font-medium text-accent-2">
+                      <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{t.stepLimitReachedTitle}</span>
+                    </div>
+                    <p className="mt-1 text-ink-2">
+                      {stuckLimitMessage || t.stepLimitReachedBody}
+                    </p>
+                  </div>
+                )}
               </form>
             </div>
           )}

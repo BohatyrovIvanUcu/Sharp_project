@@ -3,12 +3,20 @@
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.ai import bedrock_service, memory_service
 from app.ai.prompts import detect_language
-from app.models import ActionStep, SessionMessage, SessionTurn, ThinkingSession, User, utcnow
+from app.models import (
+    ActionStep,
+    MemoryEmbedding,
+    SessionMessage,
+    SessionTurn,
+    ThinkingSession,
+    User,
+    utcnow,
+)
 from app.schemas import (
     ActionStepOut,
     AnswerTurnIn,
@@ -127,13 +135,23 @@ def _step_out(step: ActionStep) -> ActionStepOut:
     )
 
 
+def _encode_chat_ai_source(ai_source: str, conversation_complete: bool) -> str:
+    if conversation_complete and not ai_source.endswith(":complete"):
+        return f"{ai_source}:complete"[:32]
+    return ai_source[:32]
+
+
 def _message_out(message: SessionMessage) -> SessionMessageOut:
     role = "assistant" if message.role == "assistant" else "user"
+    raw_source = message.ai_source or "bedrock"
+    is_complete = raw_source.endswith(":complete") or raw_source == "crisis_support"
+    clean_source = raw_source.removesuffix(":complete")
     return SessionMessageOut(
         id=message.id,
         role=role,
         content=message.content,
-        ai_source=message.ai_source,
+        ai_source=clean_source,
+        conversation_complete=is_complete,
         created_at=message.created_at,
     )
 
@@ -299,7 +317,10 @@ def create_session(db: Session, user: User, payload: CreateSessionIn) -> Thinkin
                 session_id=session.id,
                 role="assistant",
                 content=reply_res.reply,
-                ai_source=reply_res.ai_source,
+                ai_source=_encode_chat_ai_source(
+                    reply_res.ai_source,
+                    reply_res.conversation_complete,
+                ),
                 created_at=utcnow(),
             )
         )
@@ -315,9 +336,11 @@ def create_session(db: Session, user: User, payload: CreateSessionIn) -> Thinkin
         memories=memories,
         cognitive_profile=user.cognitive_profile,
         attachments=attachments,
+        chat_messages=[],
     )
 
     chosen_framework = payload.framework_id or turn_res.recommended_framework
+    is_fast_track = bool(turn_res.is_simple_problem and not turn_res.guardrail_triggered)
 
     session = ThinkingSession(
         user_id=user.id,
@@ -330,7 +353,7 @@ def create_session(db: Session, user: User, payload: CreateSessionIn) -> Thinkin
         memory_insight=serialized_memories,
         attachments_json=attachments,
         question_count=1,
-        max_questions=3,
+        max_questions=1 if is_fast_track else 3,
     )
     db.add(session)
     db.flush()
@@ -342,11 +365,24 @@ def create_session(db: Session, user: User, payload: CreateSessionIn) -> Thinkin
         framework_reason=turn_res.framework_reason,
         question_text=turn_res.question,
         options_json=[opt.model_dump() for opt in turn_res.options],
+        user_answer=turn_res.direct_response or raw_problem if is_fast_track else None,
         guardrail_triggered=turn_res.guardrail_triggered,
         ai_source=turn_res.ai_source,
     )
     db.add(turn)
+    db.flush()
+
+    if is_fast_track:
+        session.turns.append(turn)
+        _build_and_save_plan(
+            db,
+            user,
+            session,
+            direct_response=turn_res.direct_response or turn_res.question,
+        )
+
     db.commit()
+    db.expire_all()
     return to_session_out(_get_user_session(db, user, session.id))
 
 
@@ -359,7 +395,13 @@ def _clear_session_steps(db: Session, session: ThinkingSession) -> None:
         db.flush()
 
 
-def _build_and_save_plan(db: Session, user: User, session: ThinkingSession) -> None:
+def _build_and_save_plan(
+    db: Session,
+    user: User,
+    session: ThinkingSession,
+    *,
+    direct_response: str | None = None,
+) -> None:
     memories = [MemoryMatch(**m) for m in (session.memory_insight or [])]
     history = _build_history(session.turns)
     chat_messages = _build_chat_messages(session.messages)
@@ -372,6 +414,7 @@ def _build_and_save_plan(db: Session, user: User, session: ThinkingSession) -> N
         cognitive_profile=user.cognitive_profile,
         attachments=session.attachments_json,
         chat_messages=chat_messages,
+        direct_response=direct_response,
     )
 
     _clear_session_steps(db, session)
@@ -464,6 +507,7 @@ def answer_turn(db: Session, user: User, session_id: str, payload: AnswerTurnIn)
     next_turn_number = target_turn.turn_number + 1
     kept_turns = [t for t in turns if t.turn_number <= target_turn.turn_number]
     history = _build_history(kept_turns)
+    chat_messages = _build_chat_messages(session.messages)
 
     turn_res = bedrock_service.generate_socratic_turn(
         problem=session.raw_problem,
@@ -474,7 +518,20 @@ def answer_turn(db: Session, user: User, session_id: str, payload: AnswerTurnIn)
         memories=memories,
         cognitive_profile=user.cognitive_profile,
         attachments=session.attachments_json,
+        chat_messages=chat_messages,
     )
+
+    if turn_res.is_simple_problem and not turn_res.guardrail_triggered:
+        session.question_count = target_turn.turn_number
+        _build_and_save_plan(
+            db,
+            user,
+            session,
+            direct_response=turn_res.direct_response or turn_res.question,
+        )
+        db.commit()
+        db.expire_all()
+        return to_session_out(_get_user_session(db, user, session.id))
 
     session.question_count = next_turn_number
     session.detected_blocker = turn_res.detected_blocker
@@ -511,6 +568,7 @@ def switch_framework(
     if pending_turn is not None:
         memories = [MemoryMatch(**m) for m in (session.memory_insight or [])]
         history = _build_history([t for t in turns if t.id != pending_turn.id])
+        chat_messages = _build_chat_messages(session.messages)
         turn_res = bedrock_service.generate_socratic_turn(
             problem=session.raw_problem,
             history=history,
@@ -520,6 +578,7 @@ def switch_framework(
             memories=memories,
             cognitive_profile=user.cognitive_profile,
             attachments=session.attachments_json,
+            chat_messages=chat_messages,
         )
         pending_turn.framework_id = framework_id
         pending_turn.framework_reason = turn_res.framework_reason
@@ -615,12 +674,18 @@ def mark_step_stuck(db: Session, user: User, session_id: str, step_id: str) -> T
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Action step not found")
     if target.status != "active":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only an active step can be split")
-    if len(steps) >= MAX_STEPS_PER_SESSION:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"Maximum step limit ({MAX_STEPS_PER_SESSION}) reached for this session",
+    remaining_slots = MAX_STEPS_PER_SESSION - len(steps)
+    if remaining_slots < 1:
+        limit_msg = (
+            f"Досягнуто максимальну деталізацію плану ({MAX_STEPS_PER_SESSION} кроків). "
+            "Подальше дроблення зупинено — увімкни таймер і виконай активний мікрокрок на 1–2 хвилини."
+            if session.language == "uk"
+            else f"Maximum step breakdown limit ({MAX_STEPS_PER_SESSION} steps) reached. "
+            "Further splitting is paused — start the timer and complete the 1–2 minute active micro-step."
         )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, limit_msg)
 
+    chat_messages = _build_chat_messages(session.messages)
     breakdown = bedrock_service.breakdown_stuck_step(
         problem=session.raw_problem,
         step_title=target.title,
@@ -628,9 +693,12 @@ def mark_step_stuck(db: Session, user: User, session_id: str, step_id: str) -> T
         framework_id=session.framework_id,
         language=session.language,
         cognitive_profile=user.cognitive_profile,
+        attachments=session.attachments_json,
+        chat_messages=chat_messages,
     )
 
-    insert_count = len(breakdown.substeps)
+    selected_substeps = breakdown.substeps[: max(1, remaining_slots)]
+    insert_count = len(selected_substeps)
     target.status = "split"
     base_index = target.order_index
 
@@ -638,7 +706,7 @@ def mark_step_stuck(db: Session, user: User, session_id: str, step_id: str) -> T
         if step.order_index > base_index:
             step.order_index += insert_count
 
-    for idx, sub in enumerate(breakdown.substeps):
+    for idx, sub in enumerate(selected_substeps):
         db.add(
             ActionStep(
                 session_id=session.id,
@@ -731,7 +799,10 @@ def send_chat_message(
         session_id=session.id,
         role="assistant",
         content=reply_res.reply,
-        ai_source=reply_res.ai_source,
+        ai_source=_encode_chat_ai_source(
+            reply_res.ai_source,
+            reply_res.conversation_complete,
+        ),
         created_at=utcnow(),
     )
     db.add(assistant_msg)
@@ -743,5 +814,11 @@ def send_chat_message(
 
 def delete_session(db: Session, user: User, session_id: str) -> None:
     session = _get_user_session(db, user, session_id)
+    db.execute(
+        delete(MemoryEmbedding).where(
+            MemoryEmbedding.session_id == session.id,
+            MemoryEmbedding.user_id == user.id,
+        )
+    )
     db.delete(session)
     db.commit()

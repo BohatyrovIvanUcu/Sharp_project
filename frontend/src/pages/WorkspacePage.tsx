@@ -29,6 +29,7 @@ import {
 import { FrameworkDialog } from "@/components/FrameworkDialog"
 import { FrameworkLibraryView } from "@/components/FrameworkLibraryView"
 import { MemoryProfileView } from "@/components/MemoryProfileView"
+import { MonetizationModal } from "@/components/MonetizationModal"
 import { PomodoroStepRunner } from "@/components/PomodoroStepRunner"
 import { SessionChatDrawer } from "@/components/SessionChatDrawer"
 import { TaskComposer } from "@/components/TaskComposer"
@@ -45,6 +46,7 @@ import type {
   SessionMode,
   SessionPhase,
   SessionTurn,
+  SubscriptionTier,
   ThinkingSession,
 } from "@/types"
 
@@ -170,6 +172,10 @@ export function WorkspacePage() {
   const [viewingTurnNumber, setViewingTurnNumber] = useState<number | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatErrorMsg, setChatErrorMsg] = useState<string | null>(null)
+  const [stuckLimitMsg, setStuckLimitMsg] = useState<string | null>(null)
+  const [monetizationOpen, setMonetizationOpen] = useState(false)
+  const [monetizationMedia, setMonetizationMedia] = useState<"audio" | "video">("audio")
+  const [monetizationTopic, setMonetizationTopic] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed)
@@ -238,6 +244,7 @@ export function WorkspacePage() {
     setCustomAnswer("")
     setChatOpen(false)
     setChatErrorMsg(null)
+    setStuckLimitMsg(null)
   }, [])
 
   const createMutation = useMutation({
@@ -331,8 +338,21 @@ export function WorkspacePage() {
       api.markStepStuck(sessionId, stepId),
     onSuccess: (updated) => {
       setErrorMsg(null)
+      setStuckLimitMsg(null)
       queryClient.setQueryData(["session", updated.id], updated)
       void invalidateAll(updated.id)
+    },
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : t.stepLimitReachedBody
+      setStuckLimitMsg(msg)
+    },
+  })
+
+  const subscriptionMutation = useMutation({
+    mutationFn: (tier: SubscriptionTier) => api.updateSubscription(tier),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["me"], updated)
+      void queryClient.invalidateQueries({ queryKey: ["me"] })
     },
   })
 
@@ -810,7 +830,26 @@ export function WorkspacePage() {
         </div>
 
         <div className="space-y-2.5 border-t border-rule px-4 py-3">
-          {meQuery.data && <div className="truncate text-xs text-muted">{meQuery.data.email}</div>}
+          <div className="flex items-center justify-between gap-2">
+            {meQuery.data ? (
+              <div className="truncate text-xs text-muted">{meQuery.data.email}</div>
+            ) : (
+              <div />
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setMonetizationTopic(activeSession?.title ?? null)
+                setMonetizationOpen(true)
+              }}
+              className="dusk-chip inline-flex shrink-0 items-center gap-1 rounded-pill px-2.5 py-0.5 text-[11px] font-medium text-accent hover:text-ink"
+            >
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              <span>
+                {meQuery.data?.subscription?.tier === "pro" ? t.proBadge : t.unlockProBtn}
+              </span>
+            </button>
+          </div>
 
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
@@ -1389,6 +1428,9 @@ export function WorkspacePage() {
                   variant="inline"
                   isSending={chatMutation.isPending}
                   errorMsg={chatErrorMsg}
+                  hasSteps={(activeSession.steps?.length ?? 0) > 0}
+                  onConvertToPlan={() => planMutation.mutate(activeSession.id)}
+                  onNewTask={handleResetToNewTask}
                   onSend={(content, attached) =>
                     chatMutation.mutate({
                       sessionId: activeSession.id,
@@ -1406,6 +1448,7 @@ export function WorkspacePage() {
                       session={activeSession}
                       lang={lang}
                       isSubmitting={completeStepMutation.isPending || stuckMutation.isPending}
+                      stuckLimitMessage={stuckLimitMsg}
                       onCompleteStep={(stepId, elapsedSeconds, reflectionNote) =>
                         completeStepMutation.mutate({
                           sessionId: activeSession.id,
@@ -1426,6 +1469,11 @@ export function WorkspacePage() {
                           ? () => navigateToTurn(sortedTurns[sortedTurns.length - 1].turn_number)
                           : undefined
                       }
+                      onOpenMediaCoach={(mediaType, stepTitle) => {
+                        setMonetizationMedia(mediaType)
+                        setMonetizationTopic(stepTitle)
+                        setMonetizationOpen(true)
+                      }}
                     />
                     <div className="flex justify-end">
                       <button
@@ -1455,6 +1503,9 @@ export function WorkspacePage() {
                   }
                   isSending={chatMutation.isPending}
                   errorMsg={chatErrorMsg}
+                  hasSteps={(activeSession.steps?.length ?? 0) > 0}
+                  onConvertToPlan={() => planMutation.mutate(activeSession.id)}
+                  onNewTask={handleResetToNewTask}
                   onSend={(content, attached) =>
                     chatMutation.mutate({
                       sessionId: activeSession.id,
@@ -1544,6 +1595,17 @@ export function WorkspacePage() {
           lang={lang}
         />
       )}
+
+      <MonetizationModal
+        open={monetizationOpen}
+        onClose={() => setMonetizationOpen(false)}
+        lang={lang}
+        tier={meQuery.data?.subscription?.tier ?? "free"}
+        isUpdating={subscriptionMutation.isPending}
+        activeTopic={monetizationTopic}
+        initialMediaType={monetizationMedia}
+        onChangeTier={(nextTier) => subscriptionMutation.mutate(nextTier)}
+      />
     </div>
   )
 }

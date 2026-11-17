@@ -77,6 +77,7 @@ export interface SessionMessage {
   role: "user" | "assistant"
   content: string
   ai_source: string
+  conversation_complete?: boolean
   created_at: string
 }
 
@@ -140,11 +141,20 @@ export interface CognitiveProfile {
   current_streak: number
 }
 
+export type SubscriptionTier = "free" | "pro"
+
+export interface SubscriptionStatus {
+  tier: SubscriptionTier
+  audio_coach_enabled: boolean
+  video_explainer_enabled: boolean
+}
+
 export interface UserProfile {
   id: string
   email: string
   name: string | null
   cognitive_profile: CognitiveProfile
+  subscription?: SubscriptionStatus
   auth_enabled: boolean
   created_at: string
 }

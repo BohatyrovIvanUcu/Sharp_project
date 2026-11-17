@@ -56,6 +56,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   getMe: () => request<UserProfile>("/api/me"),
+  updateSubscription: (tier: "free" | "pro") =>
+    request<UserProfile>("/api/me/subscription", {
+      method: "POST",
+      body: JSON.stringify({ tier }),
+    }),
   getFrameworks: () => request<FrameworkItem[]>("/api/frameworks"),
   getMemory: () => request<MemoryOverview>("/api/memory"),
   listSessions: () => request<SessionSummary[]>("/api/sessions"),

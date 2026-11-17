@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { ChevronDown, Info } from "lucide-react"
 import { BLOCKER_LABELS, COPY } from "@/lib/i18n"
 import type { BlockerType, FrameworkItem, Language, MemoryOverview } from "@/types"
 
@@ -9,6 +11,7 @@ interface MemoryProfileViewProps {
 
 export function MemoryProfileView({ overview, frameworks, lang }: MemoryProfileViewProps) {
   const t = COPY[lang]
+  const [showBlockerHelp, setShowBlockerHelp] = useState(false)
   const profile = overview?.cognitive_profile
   const memories = overview?.memories ?? []
 
@@ -57,7 +60,42 @@ export function MemoryProfileView({ overview, frameworks, lang }: MemoryProfileV
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="dusk-surface p-6">
-          <h3 className="font-display text-base font-medium text-ink">{t.statBlockers}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-base font-medium text-ink">{t.statBlockers}</h3>
+            <button
+              type="button"
+              aria-expanded={showBlockerHelp}
+              onClick={() => setShowBlockerHelp((prev) => !prev)}
+              className="dusk-btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-ink-2 hover:text-ink"
+            >
+              <Info className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+              <span>{t.blockerHelpToggle}</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${showBlockerHelp ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          {showBlockerHelp && (
+            <div
+              role="region"
+              aria-label={t.blockerHelpTitle}
+              className="mt-3 space-y-2 rounded-inner border border-rule bg-paper-2/70 p-3.5 text-xs leading-relaxed text-ink-2"
+            >
+              <p className="font-medium text-ink">{t.blockerHelpTitle}</p>
+              <p>{t.blockerHelpIntro}</p>
+              <ul className="list-disc space-y-1 pl-4">
+                <li>{t.blockerHelpDescOverwhelm}</li>
+                <li>{t.blockerHelpDescUnclear}</li>
+                <li>{t.blockerHelpDescPerfectionism}</li>
+                <li>{t.blockerHelpDescKnowledge}</li>
+                <li>{t.blockerHelpDescFatigue}</li>
+              </ul>
+              <p className="text-muted">{t.blockerHelpHowAi}</p>
+            </div>
+          )}
+
           {blockerEntries.length === 0 ? (
             <p className="mt-3 text-sm text-muted">{t.noMemoriesYet}</p>
           ) : (

@@ -184,3 +184,21 @@ def test_origin_verify_secret_and_scrubbed_health(
     assert blocked.status_code == 403
     allowed = client.get("/api/health", headers={"X-Origin-Verify": "super-secret-origin-token"})
     assert allowed.status_code == 200
+
+
+def test_subscription_endpoint_unlocks_audio_and_video(client: TestClient) -> None:
+    me_initial = client.get("/api/me").json()
+    assert me_initial["subscription"]["tier"] == "free"
+    assert me_initial["subscription"]["audio_coach_enabled"] is False
+    assert me_initial["subscription"]["video_explainer_enabled"] is False
+
+    upgraded = client.post("/api/me/subscription", json={"tier": "pro"})
+    assert upgraded.status_code == 200
+    body = upgraded.json()
+    assert body["subscription"]["tier"] == "pro"
+    assert body["subscription"]["audio_coach_enabled"] is True
+    assert body["subscription"]["video_explainer_enabled"] is True
+
+    downgraded = client.post("/api/me/subscription", json={"tier": "free"}).json()
+    assert downgraded["subscription"]["tier"] == "free"
+    assert downgraded["subscription"]["audio_coach_enabled"] is False

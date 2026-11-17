@@ -207,12 +207,16 @@ dialog::backdrop {
   transform: scale(1.14);
 }
 
+[data-slot="hero"] img {
+  filter: var(--hero-photo-filter, none);
+}
+
 .dusk-frosted-veil {
   background: radial-gradient(
     ellipse 85% 70% at 56% 42%,
     var(--veil-top) 0%,
     var(--veil-mid) 72%,
-    var(--color-paper) 100%
+    var(--veil-edge, var(--color-paper)) 100%
   );
 }
 

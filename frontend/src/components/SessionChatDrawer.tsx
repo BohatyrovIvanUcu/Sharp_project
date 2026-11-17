@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react"
-import { FileText, MessageSquare, Plus, Send, Sparkles, X } from "lucide-react"
+import { CheckCircle2, FileText, MessageSquare, Plus, Send, Sparkles, X, Zap } from "lucide-react"
 import {
   ACCEPTED_FILE_TYPES,
   formatBytes,
@@ -31,7 +31,10 @@ interface SessionChatDrawerProps {
   dockMediaQuery?: string
   isSending: boolean
   errorMsg?: string | null
+  hasSteps?: boolean
   onSend: (content: string, attachments?: SessionAttachmentInput[]) => void
+  onConvertToPlan?: () => void
+  onNewTask?: () => void
   onClose?: () => void
 }
 
@@ -66,7 +69,10 @@ export function SessionChatDrawer({
   dockMediaQuery = "(min-width: 1280px)",
   isSending,
   errorMsg,
+  hasSteps = false,
   onSend,
+  onConvertToPlan,
+  onNewTask,
   onClose,
 }: SessionChatDrawerProps) {
   const t = COPY[lang]
@@ -77,8 +83,15 @@ export function SessionChatDrawer({
   const [fileError, setFileError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const bottomAnchorRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
+  const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.content.length}` : ""
+  const isConversationComplete = Boolean(
+    lastMessage && lastMessage.role === "assistant" && lastMessage.conversation_complete,
+  )
 
   useEffect(() => {
     setDraft("")
@@ -88,11 +101,31 @@ export function SessionChatDrawer({
 
   useEffect(() => {
     if (variant === "drawer" && !open) return
-    const el = listRef.current
-    if (el) {
-      el.scrollTop = el.scrollHeight
+    const scrollToBottom = () => {
+      const el = listRef.current
+      if (el) {
+        el.scrollTop = el.scrollHeight
+      }
+      if (variant === "inline") {
+        if (typeof bottomAnchorRef.current?.scrollIntoView === "function") {
+          bottomAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "end" })
+        }
+        if (typeof document !== "undefined" && document.documentElement) {
+          document.documentElement.scrollTop = document.documentElement.scrollHeight
+        }
+      }
     }
-  }, [messages.length, isSending, open, variant])
+    scrollToBottom()
+    const frame =
+      typeof window !== "undefined" && typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame(scrollToBottom)
+        : null
+    return () => {
+      if (frame !== null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(frame)
+      }
+    }
+  }, [messages.length, lastMessageKey, isSending, open, variant, sessionId])
 
   useEffect(() => {
     if (variant !== "drawer" || !open) return
@@ -247,6 +280,52 @@ export function SessionChatDrawer({
             <span>{t.assistantChatSending}</span>
           </div>
         )}
+
+        {isConversationComplete && !isSending && (
+          <div
+            role="status"
+            className="rounded-inner border border-accent/40 bg-accent-tint/50 p-3.5 text-xs leading-relaxed text-ink"
+          >
+            <div className="flex items-center gap-1.5 font-medium text-accent">
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{t.chatCompleteTitle}</span>
+            </div>
+            <p className="mt-1 text-ink-2">{t.chatCompleteDesc}</p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {hasSteps && onClose ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="dusk-pill-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                >
+                  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.chatCompleteToSteps}</span>
+                </button>
+              ) : onConvertToPlan ? (
+                <button
+                  type="button"
+                  onClick={onConvertToPlan}
+                  className="dusk-pill-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                >
+                  <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.convertToPlanBtn}</span>
+                </button>
+              ) : null}
+              {onNewTask && (
+                <button
+                  type="button"
+                  onClick={onNewTask}
+                  className="dusk-btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.newTask}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomAnchorRef} aria-hidden="true" />
       </div>
 
       {(errorMsg || fileError) && (
