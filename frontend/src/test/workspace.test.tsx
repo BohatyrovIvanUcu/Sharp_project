@@ -1478,9 +1478,11 @@ describe("WorkspacePage interactive Socratic flow", () => {
     const modal = await screen.findByRole("dialog", {
       name: /Sharp Pro: Аудіо- та Відео-розбір складних кроків/i,
     })
+    expect(within(modal).getByText("Free Tier (Безкоштовний)")).toBeInTheDocument()
+    expect(within(modal).getByText("Paid Tier (Sharp Pro)")).toBeInTheDocument()
     await userEvent.click(within(modal).getByRole("button", { name: /Активувати Sharp Pro/i }))
     expect(
-      await within(modal).findByText(/Голосовий розбір кроку \(AI Audio Coach\)/i),
+      await within(modal).findByRole("button", { name: /Перемкнути на безкоштовний план/i }),
     ).toBeInTheDocument()
   })
 })

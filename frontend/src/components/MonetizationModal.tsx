@@ -1,5 +1,4 @@
-import { useState } from "react"
-import { Check, CheckCircle2, Headphones, Lock, Minus, Play, Sparkles, Video, X } from "lucide-react"
+import { Check, CheckCircle2, Minus, Sparkles, X } from "lucide-react"
 import { COPY } from "@/lib/i18n"
 import type { Language, SubscriptionTier } from "@/types"
 
@@ -20,13 +19,9 @@ export function MonetizationModal({
   lang,
   tier,
   isUpdating,
-  activeTopic,
-  initialMediaType = "audio",
   onChangeTier,
 }: MonetizationModalProps) {
   const t = COPY[lang]
-  const [selectedMedia, setSelectedMedia] = useState<"audio" | "video">(initialMediaType)
-  const [playingPreview, setPlayingPreview] = useState(false)
 
   if (!open) return null
 
@@ -43,7 +38,7 @@ export function MonetizationModal({
         role="dialog"
         aria-modal="true"
         aria-label={t.monetizationTitle}
-        className="dusk-surface-elevated relative z-10 max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto p-5 shadow-2xl sm:p-6"
+        className="dusk-surface-elevated relative z-10 max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto p-5 shadow-2xl sm:p-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -109,7 +104,7 @@ export function MonetizationModal({
               </ul>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-rule">
+            <div className="mt-4 border-t border-rule pt-3">
               {!isPro ? (
                 <div className="inline-flex w-full items-center justify-center rounded-pill border border-rule bg-paper-2 py-2 text-xs font-medium text-muted">
                   {t.currentPlanBadge}
@@ -169,7 +164,7 @@ export function MonetizationModal({
               </ul>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-rule">
+            <div className="mt-4 border-t border-rule pt-3">
               {isPro ? (
                 <div className="inline-flex w-full items-center justify-center gap-1.5 rounded-pill bg-accent-tint py-2 text-xs font-medium text-accent">
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -189,82 +184,6 @@ export function MonetizationModal({
             </div>
           </div>
         </div>
-
-        {/* Media generator cards (Audio & Video explainers) */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedMedia("audio")
-              setPlayingPreview(false)
-            }}
-            className={`rounded-inner border p-3 text-left transition-colors ${
-              selectedMedia === "audio"
-                ? "border-accent bg-accent-tint/50"
-                : "border-rule bg-paper hover:border-accent/60"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink sm:text-sm">
-                <Headphones className="h-4 w-4 text-accent" aria-hidden="true" />
-                <span>{t.audioCoachBtn}</span>
-              </span>
-              {!isPro && <Lock className="h-3.5 w-3.5 text-muted" aria-hidden="true" />}
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-ink-2">{t.audioCoachDesc}</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedMedia("video")
-              setPlayingPreview(false)
-            }}
-            className={`rounded-inner border p-3 text-left transition-colors ${
-              selectedMedia === "video"
-                ? "border-accent bg-accent-tint/50"
-                : "border-rule bg-paper hover:border-accent/60"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink sm:text-sm">
-                <Video className="h-4 w-4 text-accent-2" aria-hidden="true" />
-                <span>{t.videoExplainerBtn}</span>
-              </span>
-              {!isPro && <Lock className="h-3.5 w-3.5 text-muted" aria-hidden="true" />}
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-ink-2">{t.videoExplainerDesc}</p>
-          </button>
-        </div>
-
-        {isPro ? (
-          <div className="rounded-inner border border-accent/35 bg-paper p-3.5 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="font-medium text-ink">
-                {selectedMedia === "audio" ? t.audioCoachTitle : t.videoExplainerTitle}
-                {activeTopic ? ` — «${activeTopic}»` : ""}
-              </div>
-              <button
-                type="button"
-                onClick={() => setPlayingPreview((prev) => !prev)}
-                className="dusk-pill-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-              >
-                <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{playingPreview ? t.pauseTimer : t.startTimer}</span>
-              </button>
-            </div>
-            {playingPreview && (
-              <p className="mt-2 flex items-center gap-1.5 text-success">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span>{t.mediaReadyHint}</span>
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-inner border border-rule bg-paper-2/70 p-3 text-xs text-ink-2">
-            {t.proRequiredHint}
-          </div>
-        )}
       </div>
     </div>
   )
