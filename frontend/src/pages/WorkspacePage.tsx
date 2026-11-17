@@ -916,19 +916,6 @@ export function WorkspacePage() {
             >
               <Search className="h-4 w-4" aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label={theme === "dark" ? t.switchToLight : t.switchToDark}
-              title={theme === "dark" ? t.switchToLight : t.switchToDark}
-              className="dusk-chip inline-flex h-9 w-9 items-center justify-center rounded-pill text-ink-2 hover:text-ink"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Moon className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
           </div>
         )}
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-rule/70 bg-paper/75 px-4 py-2.5 lg:hidden">
