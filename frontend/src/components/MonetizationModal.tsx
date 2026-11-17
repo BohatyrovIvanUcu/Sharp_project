@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { CheckCircle2, Headphones, Lock, Play, Sparkles, Video, X } from "lucide-react"
+import { Check, CheckCircle2, Headphones, Lock, Minus, Play, Sparkles, Video, X } from "lucide-react"
 import { COPY } from "@/lib/i18n"
 import type { Language, SubscriptionTier } from "@/types"
 
@@ -43,7 +43,7 @@ export function MonetizationModal({
         role="dialog"
         aria-modal="true"
         aria-label={t.monetizationTitle}
-        className="dusk-surface-elevated relative z-10 w-full max-w-lg space-y-4 p-5 shadow-2xl sm:p-6"
+        className="dusk-surface-elevated relative z-10 max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto p-5 shadow-2xl sm:p-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -68,6 +68,129 @@ export function MonetizationModal({
           </button>
         </div>
 
+        {/* Two-column plan comparison: Left = Free Tier, Right = Paid Tier (Sharp Pro) */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Left Column: Free Tier */}
+          <div
+            className={`flex flex-col justify-between rounded-inner border p-4 ${
+              !isPro ? "border-ink/25 bg-paper" : "border-rule bg-paper-2/60"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-display text-base font-medium text-ink">
+                  {t.freeTierTitle}
+                </h3>
+                <span className="rounded-pill bg-paper-3 px-2.5 py-0.5 text-xs font-medium text-ink-2">
+                  {t.freeTierPrice}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {t.freeTierSub}
+              </p>
+
+              <ul className="mt-3.5 space-y-2 text-xs leading-relaxed text-ink-2">
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-2" aria-hidden="true" />
+                  <span>{t.freeFeature1}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-2" aria-hidden="true" />
+                  <span>{t.freeFeature2}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-2" aria-hidden="true" />
+                  <span>{t.freeFeature3}</span>
+                </li>
+                <li className="flex items-start gap-2 text-muted">
+                  <Minus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  <span>{t.freeFeature4}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-rule">
+              {!isPro ? (
+                <div className="inline-flex w-full items-center justify-center rounded-pill border border-rule bg-paper-2 py-2 text-xs font-medium text-muted">
+                  {t.currentPlanBadge}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={() => onChangeTier("free")}
+                  className="dusk-btn-ghost w-full px-3.5 py-2 text-xs"
+                >
+                  {t.switchToFreeBtn}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Paid Tier (Sharp Pro) */}
+          <div
+            className={`flex flex-col justify-between rounded-inner border p-4 ${
+              isPro
+                ? "border-accent bg-accent-tint/25"
+                : "border-accent/50 bg-paper shadow-sm"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="inline-flex items-center gap-1.5 font-display text-base font-medium text-ink">
+                  <Sparkles className="h-4 w-4 text-accent" aria-hidden="true" />
+                  <span>{t.proTierTitle}</span>
+                </h3>
+                <span className="rounded-pill bg-accent-tint px-2.5 py-0.5 text-xs font-medium text-accent">
+                  {t.proTierPrice}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-ink-2">
+                {t.proTierSub}
+              </p>
+
+              <ul className="mt-3.5 space-y-2 text-xs leading-relaxed text-ink">
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                  <span>{t.proFeature1}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                  <span>{t.proFeature2}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                  <span>{t.proFeature3}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                  <span>{t.proFeature4}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-rule">
+              {isPro ? (
+                <div className="inline-flex w-full items-center justify-center gap-1.5 rounded-pill bg-accent-tint py-2 text-xs font-medium text-accent">
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.currentPlanBadge}</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={() => onChangeTier("pro")}
+                  className="dusk-pill-primary inline-flex w-full items-center justify-center gap-1.5 px-4 py-2 text-xs sm:text-sm"
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span>{t.unlockProBtn}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Media generator cards (Audio & Video explainers) */}
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
@@ -75,20 +198,20 @@ export function MonetizationModal({
               setSelectedMedia("audio")
               setPlayingPreview(false)
             }}
-            className={`rounded-inner border p-3.5 text-left transition-colors ${
+            className={`rounded-inner border p-3 text-left transition-colors ${
               selectedMedia === "audio"
                 ? "border-accent bg-accent-tint/50"
                 : "border-rule bg-paper hover:border-accent/60"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink sm:text-sm">
                 <Headphones className="h-4 w-4 text-accent" aria-hidden="true" />
                 <span>{t.audioCoachBtn}</span>
               </span>
               {!isPro && <Lock className="h-3.5 w-3.5 text-muted" aria-hidden="true" />}
             </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-ink-2">{t.audioCoachDesc}</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-2">{t.audioCoachDesc}</p>
           </button>
 
           <button
@@ -97,20 +220,20 @@ export function MonetizationModal({
               setSelectedMedia("video")
               setPlayingPreview(false)
             }}
-            className={`rounded-inner border p-3.5 text-left transition-colors ${
+            className={`rounded-inner border p-3 text-left transition-colors ${
               selectedMedia === "video"
                 ? "border-accent bg-accent-tint/50"
                 : "border-rule bg-paper hover:border-accent/60"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink sm:text-sm">
                 <Video className="h-4 w-4 text-accent-2" aria-hidden="true" />
                 <span>{t.videoExplainerBtn}</span>
               </span>
               {!isPro && <Lock className="h-3.5 w-3.5 text-muted" aria-hidden="true" />}
             </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-ink-2">{t.videoExplainerDesc}</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-2">{t.videoExplainerDesc}</p>
           </button>
         </div>
 
@@ -138,40 +261,10 @@ export function MonetizationModal({
             )}
           </div>
         ) : (
-          <div className="rounded-inner border border-rule bg-paper-2/70 p-3.5 text-xs text-ink-2">
+          <div className="rounded-inner border border-rule bg-paper-2/70 p-3 text-xs text-ink-2">
             {t.proRequiredHint}
           </div>
         )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-rule pt-3">
-          {isPro ? (
-            <button
-              type="button"
-              disabled={isUpdating}
-              onClick={() => onChangeTier("free")}
-              className="dusk-btn-ghost px-3.5 py-2 text-xs"
-            >
-              {t.switchToFreeBtn}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={isUpdating}
-              onClick={() => onChangeTier("pro")}
-              className="dusk-pill-primary inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm"
-            >
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              <span>{t.unlockProBtn}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="dusk-btn-ghost px-3.5 py-2 text-xs"
-          >
-            {t.closeDialog}
-          </button>
-        </div>
       </div>
     </div>
   )
