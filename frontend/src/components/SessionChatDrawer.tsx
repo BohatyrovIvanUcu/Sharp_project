@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react"
-import { CheckCircle2, FileText, MessageSquare, Plus, Send, Sparkles, X, Zap } from "lucide-react"
+import { CheckCircle2, FileText, MessageSquare, Mic, Plus, Send, Sparkles, X, Zap } from "lucide-react"
 import {
   ACCEPTED_FILE_TYPES,
   formatBytes,
   readAttachmentsFromFileList,
 } from "@/lib/attachments"
 import { COPY } from "@/lib/i18n"
+import { useVoiceInput } from "@/lib/voice"
 import type { Language, SessionAttachmentInput, SessionMessage } from "@/types"
 
 function renderFormattedText(content: string) {
@@ -87,6 +88,15 @@ export function SessionChatDrawer({
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const { isListening, toggleListening, stopListening } = useVoiceInput({
+    lang,
+    onChange: (nextValue) => {
+      setFileError(null)
+      setDraft(nextValue)
+    },
+    onUnsupported: () => setFileError(t.voiceNotSupported),
+  })
+
   const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.content.length}` : ""
   const isConversationComplete = Boolean(
@@ -163,6 +173,7 @@ export function SessionChatDrawer({
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     if (isSending) return
+    stopListening()
     const trimmed = draft.trim()
     if (!trimmed && pendingAttachments.length === 0) return
     const attached = pendingAttachments.length > 0 ? pendingAttachments : undefined
@@ -436,6 +447,24 @@ export function SessionChatDrawer({
                   : "dusk-field min-h-[2.75rem] min-w-0 flex-1 resize-none px-3 py-2 text-sm leading-snug"
               }
             />
+            <button
+              type="button"
+              disabled={isSending}
+              onClick={() => {
+                inputRef.current?.focus({ preventScroll: true })
+                toggleListening(draft)
+              }}
+              aria-pressed={isListening}
+              aria-label={isListening ? t.voiceStop : t.voiceStart}
+              title={isListening ? t.voiceStop : t.voiceStart}
+              className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-inner transition-colors disabled:opacity-50 ${
+                isListening
+                  ? "border border-accent bg-accent-tint text-accent"
+                  : "dusk-hover-tint text-ink-2 hover:text-ink"
+              }`}
+            >
+              <Mic className={`h-4 w-4 ${isListening ? "animate-pulse" : ""}`} aria-hidden="true" />
+            </button>
             <button
               type="submit"
               disabled={isSending || (!draft.trim() && pendingAttachments.length === 0)}

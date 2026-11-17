@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Mic,
   Moon,
   PanelLeft,
   Plus,
@@ -38,6 +39,7 @@ import { api } from "@/lib/api"
 import { signOut } from "@/lib/auth"
 import { BLOCKER_LABELS, COPY, useLanguage } from "@/lib/i18n"
 import { useTheme } from "@/lib/theme"
+import { useVoiceInput } from "@/lib/voice"
 import type {
   BlockerType,
   FrameworkId,
@@ -208,6 +210,19 @@ export function WorkspacePage() {
     }
   }
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const {
+    isListening: isCustomAnswerListening,
+    toggleListening: toggleCustomAnswerVoice,
+    stopListening: stopCustomAnswerVoice,
+  } = useVoiceInput({
+    lang,
+    onChange: (nextValue) => {
+      setErrorMsg(null)
+      setCustomAnswer(nextValue)
+    },
+    onUnsupported: () => setErrorMsg(t.voiceNotSupported),
+  })
 
   const meQuery = useQuery({ queryKey: ["me"], queryFn: api.getMe })
   const frameworksQuery = useQuery({ queryKey: ["frameworks"], queryFn: api.getFrameworks })
@@ -482,6 +497,7 @@ export function WorkspacePage() {
   const handleSubmitCustomAnswer = useCallback(
     (turn: SessionTurn) => {
       if (!activeSession || answerMutation.isPending) return
+      stopCustomAnswerVoice()
       const trimmed = customAnswer.trim()
       if (!trimmed) return
       const isUnchangedCustom =
@@ -503,7 +519,15 @@ export function WorkspacePage() {
             : undefined,
       })
     },
-    [activeSession, answerMutation, customAnswer, sortedTurns, currentPendingTurn, navigateToTurn],
+    [
+      activeSession,
+      answerMutation,
+      customAnswer,
+      sortedTurns,
+      currentPendingTurn,
+      navigateToTurn,
+      stopCustomAnswerVoice,
+    ],
   )
 
   useEffect(() => {
@@ -1335,6 +1359,26 @@ export function WorkspacePage() {
                         placeholder={t.customPlaceholder}
                         className="dusk-field min-w-0 flex-1 px-3 py-1.5 text-sm"
                       />
+                      <button
+                        type="button"
+                        disabled={answerMutation.isPending}
+                        onClick={() => toggleCustomAnswerVoice(customAnswer)}
+                        aria-pressed={isCustomAnswerListening}
+                        aria-label={isCustomAnswerListening ? t.voiceStop : t.voiceStart}
+                        title={isCustomAnswerListening ? t.voiceStop : t.voiceStart}
+                        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-inner transition-colors disabled:opacity-50 ${
+                          isCustomAnswerListening
+                            ? "border border-accent bg-accent-tint text-accent"
+                            : "dusk-btn-ghost p-0 text-ink-2 hover:text-ink"
+                        }`}
+                      >
+                        <Mic
+                          className={`h-3.5 w-3.5 ${
+                            isCustomAnswerListening ? "animate-pulse" : ""
+                          }`}
+                          aria-hidden="true"
+                        />
+                      </button>
                       <button
                         type="submit"
                         disabled={answerMutation.isPending || !customAnswer.trim()}

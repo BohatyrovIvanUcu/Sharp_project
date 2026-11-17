@@ -6,6 +6,7 @@ import {
   Brain,
   ChevronDown,
   FileText,
+  Mic,
   Paperclip,
   Plus,
   Send,
@@ -18,6 +19,7 @@ import {
   readAttachmentsFromFileList,
 } from "@/lib/attachments"
 import { COPY } from "@/lib/i18n"
+import { useVoiceInput } from "@/lib/voice"
 import type {
   FrameworkId,
   FrameworkItem,
@@ -69,6 +71,15 @@ export function TaskComposer({
   const [methodsHighlighted, setMethodsHighlighted] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
+  const { isListening, toggleListening, stopListening } = useVoiceInput({
+    lang,
+    onChange: (nextValue) => {
+      setLocalError(null)
+      onChangeProblem(nextValue)
+    },
+    onUnsupported: () => setLocalError(t.voiceNotSupported),
+  })
+
   useEffect(() => {
     return () => {
       if (highlightTimerRef.current) {
@@ -77,7 +88,7 @@ export function TaskComposer({
     }
   }, [])
 
-  const isExpanded = focused || problem.trim().length > 0 || attachments.length > 0
+  const isExpanded = focused || isListening || problem.trim().length > 0 || attachments.length > 0
 
   const selectedMethodLabel =
     selectedFramework === "auto"
@@ -141,6 +152,7 @@ export function TaskComposer({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isSubmitting) return
+    stopListening()
     const trimmed = problem.trim()
     if (trimmed.length < 3 && attachments.length === 0) {
       setLocalError(t.attachmentNeedInput)
@@ -310,6 +322,19 @@ export function TaskComposer({
                 </button>
               )}
               <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  focusInput()
+                  toggleListening(problem)
+                }}
+                aria-label={isListening ? t.voiceStop : t.voiceStart}
+                title={isListening ? t.voiceStop : t.voiceStart}
+                className="dusk-hover-tint inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-inner text-ink-2 hover:text-ink"
+              >
+                <Mic className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
                 type="submit"
                 disabled={isSubmitting}
                 aria-label={submitLabel}
@@ -336,6 +361,31 @@ export function TaskComposer({
                 >
                   <Paperclip className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
                   <span>{t.attachFile}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    focusInput()
+                    toggleListening(problem)
+                  }}
+                  aria-pressed={isListening}
+                  aria-label={isListening ? t.voiceStop : t.voiceStart}
+                  title={isListening ? t.voiceStop : t.voiceStart}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-inner border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    isListening
+                      ? "border-accent bg-accent-tint text-accent"
+                      : "dusk-chip text-ink"
+                  }`}
+                >
+                  <Mic
+                    className={`h-3.5 w-3.5 ${
+                      isListening ? "animate-pulse text-accent" : "text-accent"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>{isListening ? t.voiceListening : t.voiceStart}</span>
                 </button>
 
                 {mode === "task" && (

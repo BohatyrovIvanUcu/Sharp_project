@@ -136,6 +136,11 @@ export const COPY = {
     quickExamplesLabel: "Або оберіть сценарій старту",
     attachFile: "Додати файл",
     removeAttachment: "Прибрати файл",
+    voiceStart: "Голосове введення",
+    voiceStop: "Зупинити запис",
+    voiceListening: "Слухаю...",
+    voiceNotSupported:
+      "Голосове введення не підтримується в цьому браузері (спробуйте Chrome, Edge або Safari).",
     attachmentTooLarge: "Файл завеликий (макс. 2.5 МБ)",
     attachmentNeedInput: "Опишіть задачу (від 3 символів) або прикріпіть файл",
     attachedFilesLabel: "Прикріплені файли",
@@ -383,6 +388,11 @@ export const COPY = {
     quickExamplesLabel: "Or pick a starter flow",
     attachFile: "Attach file",
     removeAttachment: "Remove file",
+    voiceStart: "Voice input",
+    voiceStop: "Stop recording",
+    voiceListening: "Listening...",
+    voiceNotSupported:
+      "Voice input is not supported in this browser (try Chrome, Edge, or Safari).",
     attachmentTooLarge: "File too large (max 2.5 MB)",
     attachmentNeedInput: "Describe a task (min 3 chars) or attach a file",
     attachedFilesLabel: "Attached context",
