@@ -352,15 +352,16 @@ export function TaskComposer({
           className="dusk-composer-subgrid"
         >
           <div>
-            <div className="dusk-glass-row-rule mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t pt-2.5">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="dusk-glass-row-rule mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <button
                   type="button"
                   onClick={openFilePicker}
-                  className="dusk-chip inline-flex min-h-9 items-center gap-1.5 rounded-inner px-3 py-1.5 text-xs font-medium text-ink"
+                  aria-label={t.attachFile}
+                  title={t.attachFile}
+                  className="dusk-chip inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-inner text-ink"
                 >
-                  <Paperclip className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                  <span>{t.attachFile}</span>
+                  <Paperclip className="h-4 w-4 text-accent" aria-hidden="true" />
                 </button>
 
                 <button
@@ -373,19 +374,18 @@ export function TaskComposer({
                   aria-pressed={isListening}
                   aria-label={isListening ? t.voiceStop : t.voiceStart}
                   title={isListening ? t.voiceStop : t.voiceStart}
-                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-inner border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-inner border transition-colors ${
                     isListening
                       ? "border-accent bg-accent-tint text-accent"
                       : "dusk-chip text-ink"
                   }`}
                 >
                   <Mic
-                    className={`h-3.5 w-3.5 ${
+                    className={`h-4 w-4 ${
                       isListening ? "animate-pulse text-accent" : "text-accent"
                     }`}
                     aria-hidden="true"
                   />
-                  <span>{isListening ? t.voiceListening : t.voiceStart}</span>
                 </button>
 
                 {mode === "task" && (
@@ -393,16 +393,16 @@ export function TaskComposer({
                     type="button"
                     onClick={highlightMethodsSection}
                     title={t.autoMethodHint}
-                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-inner border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-inner border px-3 py-1.5 text-xs font-medium transition-colors ${
                       methodsHighlighted
                         ? "border-accent bg-accent-tint text-ink"
                         : "dusk-chip text-ink"
                     }`}
                   >
-                    <Brain className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                    <span>{selectedMethodLabel}</span>
+                    <Brain className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                    <span className="truncate">{selectedMethodLabel}</span>
                     <ChevronDown
-                      className={`h-3.5 w-3.5 text-ink-2 transition-transform ${
+                      className={`h-3.5 w-3.5 shrink-0 text-ink-2 transition-transform ${
                         methodsHighlighted ? "rotate-180 text-accent" : ""
                       }`}
                       aria-hidden="true"
@@ -414,7 +414,7 @@ export function TaskComposer({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="dusk-pill-primary inline-flex min-h-9 items-center gap-1.5 rounded-inner! px-4 py-1.5 text-xs sm:text-sm"
+                className="dusk-pill-primary inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-inner! px-4 py-1.5 text-xs whitespace-nowrap sm:text-sm"
               >
                 {mode === "chat" ? (
                   <Send className="h-3.5 w-3.5" aria-hidden="true" />
