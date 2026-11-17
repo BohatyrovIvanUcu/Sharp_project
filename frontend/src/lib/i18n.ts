@@ -57,6 +57,28 @@ export const BLOCKER_LABELS: Record<BlockerType, { uk: string; en: string }> = {
   fatigue: { uk: "Втома / важко розкачатись", en: "Activation Fatigue" },
 }
 
+const RAW_BLOCKER_RE = /\b(overwhelm|unclear_scope|perfectionism|missing_knowledge|fatigue)\b/gi
+
+export function formatMemoryText(text: string, lang: Language): string {
+  if (!text) return text
+  let formatted = text.replace(RAW_BLOCKER_RE, (match) => {
+    const key = match.toLowerCase() as BlockerType
+    return BLOCKER_LABELS[key]?.[lang] ?? match
+  })
+  if (lang === "en") {
+    formatted = formatted
+      .replace(/\bЗадача:/g, "Task:")
+      .replace(/\bБлокер:/g, "Blocker:")
+      .replace(/\bПідсумок:/g, "Summary:")
+  } else {
+    formatted = formatted
+      .replace(/\bTask:/g, "Задача:")
+      .replace(/\bBlocker:/g, "Блокер:")
+      .replace(/\bSummary:/g, "Підсумок:")
+  }
+  return formatted
+}
+
 export const COPY = {
   uk: {
     brandTagline: "Допомагати вам, а не замінювати вас.",

@@ -37,7 +37,7 @@ import { TaskComposer } from "@/components/TaskComposer"
 import { TaskSearchDialog } from "@/components/TaskSearchDialog"
 import { api } from "@/lib/api"
 import { signOut } from "@/lib/auth"
-import { BLOCKER_LABELS, COPY, useLanguage } from "@/lib/i18n"
+import { BLOCKER_LABELS, COPY, formatMemoryText, useLanguage } from "@/lib/i18n"
 import { useTheme } from "@/lib/theme"
 import { useVoiceInput } from "@/lib/voice"
 import type {
@@ -1218,7 +1218,7 @@ export function WorkspacePage() {
                           <span className="font-medium text-accent">
                             [{Math.round(mem.similarity * 100)}%]
                           </span>{" "}
-                          {mem.summary_text}
+                          {formatMemoryText(mem.summary_text, lang)}
                           {mem.first_step_title ? `, ${mem.first_step_title}` : ""}
                         </li>
                       ))}

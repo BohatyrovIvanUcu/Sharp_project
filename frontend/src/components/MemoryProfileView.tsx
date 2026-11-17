@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ChevronDown, Info } from "lucide-react"
-import { BLOCKER_LABELS, COPY } from "@/lib/i18n"
+import { BLOCKER_LABELS, COPY, formatMemoryText } from "@/lib/i18n"
 import type { BlockerType, FrameworkItem, Language, MemoryOverview } from "@/types"
 
 interface MemoryProfileViewProps {
@@ -172,7 +172,9 @@ export function MemoryProfileView({ overview, frameworks, lang }: MemoryProfileV
                     {new Date(mem.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-ink">{mem.summary_text}</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink">
+                  {formatMemoryText(mem.summary_text, lang)}
+                </p>
                 {mem.first_step_title && (
                   <p className="mt-1.5 text-xs font-medium text-success">{mem.first_step_title}</p>
                 )}
