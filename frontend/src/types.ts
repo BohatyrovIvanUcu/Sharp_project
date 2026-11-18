@@ -149,6 +149,38 @@ export interface SubscriptionStatus {
   video_explainer_enabled: boolean
 }
 
+export interface MonobankCheckoutResponse {
+  invoice_id: string
+  reference: string
+  page_url: string
+  amount: number
+  currency: number
+  status: string
+}
+
+export interface BillingInvoiceSummary {
+  invoice_id: string
+  reference: string
+  status: string
+  amount: number
+  currency: number
+  page_url: string
+  failure_reason: string | null
+  created_at: string
+  paid_at: string | null
+}
+
+export interface MonobankConfirmResponse {
+  invoice_id: string
+  reference: string
+  status: string
+  amount: number
+  currency: number
+  upgraded: boolean
+  failure_reason: string | null
+  user: UserProfile
+}
+
 export interface UserProfile {
   id: string
   email: string

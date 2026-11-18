@@ -30,6 +30,9 @@ services:
       BEDROCK_REGION: ${BEDROCK_REGION:-us-east-1}
       BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.amazon.nova-lite-v1:0}
       BEDROCK_EMBEDDING_MODEL_ID: ${BEDROCK_EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
+      MONOBANK_API_TOKEN: ${MONOBANK_API_TOKEN:-}
+      MONOBANK_PRO_AMOUNT_KOPECKS: ${MONOBANK_PRO_AMOUNT_KOPECKS:-99900}
+      MONOBANK_PRO_CURRENCY: ${MONOBANK_PRO_CURRENCY:-980}
     command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "${BACKEND_PORT:-8000}:8000"

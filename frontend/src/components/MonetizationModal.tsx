@@ -1,6 +1,12 @@
-import { Check, CheckCircle2, Minus, Sparkles, X } from "lucide-react"
+import { AlertCircle, Check, CheckCircle2, Loader2, Minus, RefreshCw, Sparkles, X } from "lucide-react"
 import { COPY } from "@/lib/i18n"
 import type { Language, SubscriptionTier } from "@/types"
+
+export interface BillingBannerState {
+  tone: "info" | "success" | "error"
+  message: string
+  showRefresh?: boolean
+}
 
 interface MonetizationModalProps {
   open: boolean
@@ -8,9 +14,14 @@ interface MonetizationModalProps {
   lang: Language
   tier: SubscriptionTier
   isUpdating: boolean
+  isCheckingOut?: boolean
+  isConfirmingPayment?: boolean
   activeTopic?: string | null
   initialMediaType?: "audio" | "video"
+  billingBanner?: BillingBannerState | null
   onChangeTier: (tier: SubscriptionTier) => void
+  onStartCheckout: () => void
+  onRefreshPaymentStatus?: () => void
 }
 
 export function MonetizationModal({
@@ -19,7 +30,12 @@ export function MonetizationModal({
   lang,
   tier,
   isUpdating,
+  isCheckingOut = false,
+  isConfirmingPayment = false,
+  billingBanner = null,
   onChangeTier,
+  onStartCheckout,
+  onRefreshPaymentStatus,
 }: MonetizationModalProps) {
   const t = COPY[lang]
 
@@ -62,6 +78,44 @@ export function MonetizationModal({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
+
+        {billingBanner && (
+          <div
+            role={billingBanner.tone === "error" ? "alert" : "status"}
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-inner border px-3.5 py-2.5 text-xs ${
+              billingBanner.tone === "success"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-ink"
+                : billingBanner.tone === "error"
+                  ? "border-danger/40 bg-danger/10 text-danger"
+                  : "border-accent/40 bg-accent-tint/30 text-ink"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {isConfirmingPayment ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent" aria-hidden="true" />
+              ) : billingBanner.tone === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              )}
+              <span>{billingBanner.message}</span>
+            </div>
+            {billingBanner.showRefresh && onRefreshPaymentStatus && (
+              <button
+                type="button"
+                disabled={isConfirmingPayment}
+                onClick={onRefreshPaymentStatus}
+                className="dusk-btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1 text-xs"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${isConfirmingPayment ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                <span>{t.billingRefreshBtn}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Two-column plan comparison: Left = Free Tier, Right = Paid Tier (Sharp Pro) */}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -136,12 +190,15 @@ export function MonetizationModal({
                   <Sparkles className="h-4 w-4 text-accent" aria-hidden="true" />
                   <span>{t.proTierTitle}</span>
                 </h3>
-                <span className="rounded-pill bg-accent-tint px-2.5 py-0.5 text-xs font-medium text-accent">
+                <span className="rounded-pill bg-accent-tint px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-accent">
                   {t.proTierPrice}
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-ink-2">
                 {t.proTierSub}
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-accent/90">
+                {t.proTierPriceEquiv}
               </p>
 
               <ul className="mt-3.5 space-y-2 text-xs leading-relaxed text-ink">
@@ -173,12 +230,16 @@ export function MonetizationModal({
               ) : (
                 <button
                   type="button"
-                  disabled={isUpdating}
-                  onClick={() => onChangeTier("pro")}
+                  disabled={isUpdating || isCheckingOut || isConfirmingPayment}
+                  onClick={onStartCheckout}
                   className="dusk-pill-primary inline-flex w-full items-center justify-center gap-1.5 px-4 py-2 text-xs sm:text-sm"
                 >
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  <span>{t.unlockProBtn}</span>
+                  {isCheckingOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span>{isCheckingOut ? t.billingRedirecting : t.unlockProBtn}</span>
                 </button>
               )}
             </div>

@@ -30,7 +30,7 @@ import {
 import { FrameworkDialog } from "@/components/FrameworkDialog"
 import { FrameworkLibraryView } from "@/components/FrameworkLibraryView"
 import { MemoryProfileView } from "@/components/MemoryProfileView"
-import { MonetizationModal } from "@/components/MonetizationModal"
+import { MonetizationModal, type BillingBannerState } from "@/components/MonetizationModal"
 import { PomodoroStepRunner } from "@/components/PomodoroStepRunner"
 import { SessionChatDrawer } from "@/components/SessionChatDrawer"
 import { TaskComposer } from "@/components/TaskComposer"
@@ -178,6 +178,9 @@ export function WorkspacePage() {
   const [monetizationOpen, setMonetizationOpen] = useState(false)
   const [monetizationMedia, setMonetizationMedia] = useState<"audio" | "video">("audio")
   const [monetizationTopic, setMonetizationTopic] = useState<string | null>(null)
+  const [billingBanner, setBillingBanner] = useState<BillingBannerState | null>(null)
+  const [pendingBillingRef, setPendingBillingRef] = useState<string | null>(null)
+  const handledBillingReturnRef = useRef(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed)
@@ -366,10 +369,82 @@ export function WorkspacePage() {
   const subscriptionMutation = useMutation({
     mutationFn: (tier: SubscriptionTier) => api.updateSubscription(tier),
     onSuccess: (updated) => {
+      setBillingBanner(null)
       queryClient.setQueryData(["me"], updated)
       void queryClient.invalidateQueries({ queryKey: ["me"] })
     },
   })
+
+  const monobankCheckoutMutation = useMutation({
+    mutationFn: () => api.startMonobankCheckout(),
+    onMutate: () => {
+      setBillingBanner(null)
+    },
+    onSuccess: (checkout) => {
+      setPendingBillingRef(checkout.reference)
+      if (!checkout.page_url.startsWith("https://")) {
+        setBillingBanner({ tone: "error", message: t.billingFailedNotice })
+        return
+      }
+      window.location.assign(checkout.page_url)
+    },
+    onError: (err) => {
+      setBillingBanner({
+        tone: "error",
+        message: err instanceof Error ? err.message : t.billingFailedNotice,
+      })
+    },
+  })
+
+  const monobankConfirmMutation = useMutation({
+    mutationFn: (reference?: string | null) =>
+      api.confirmMonobankPayment(reference ? { reference } : {}),
+    onMutate: () => {
+      setBillingBanner({ tone: "info", message: t.billingChecking })
+    },
+    onSuccess: (res) => {
+      setPendingBillingRef(res.reference)
+      queryClient.setQueryData(["me"], res.user)
+      void queryClient.invalidateQueries({ queryKey: ["me"] })
+      if (res.status === "success") {
+        setBillingBanner({ tone: "success", message: t.billingSuccessNotice })
+        return
+      }
+      if (res.status === "failure" || res.status === "expired" || res.status === "reversed") {
+        setBillingBanner({
+          tone: "error",
+          message: res.failure_reason || t.billingFailedNotice,
+        })
+        return
+      }
+      setBillingBanner({
+        tone: "info",
+        message: t.billingPendingNotice,
+        showRefresh: true,
+      })
+    },
+    onError: (err) => {
+      setBillingBanner({
+        tone: "error",
+        message: err instanceof Error ? err.message : t.billingFailedNotice,
+        showRefresh: true,
+      })
+    },
+  })
+
+  const { mutate: confirmMonobankPayment } = monobankConfirmMutation
+
+  useEffect(() => {
+    if (handledBillingReturnRef.current || typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("billing") !== "monobank") return
+    handledBillingReturnRef.current = true
+    const ref = params.get("ref")
+    window.history.replaceState({}, "", window.location.pathname)
+    setPendingBillingRef(ref)
+    setMonetizationOpen(true)
+    confirmMonobankPayment(ref)
+  }, [confirmMonobankPayment])
 
   const deleteMutation = useMutation({
     mutationFn: (sessionId: string) => api.deleteSession(sessionId),
@@ -1615,9 +1690,14 @@ export function WorkspacePage() {
         lang={lang}
         tier={meQuery.data?.subscription?.tier ?? "free"}
         isUpdating={subscriptionMutation.isPending}
+        isCheckingOut={monobankCheckoutMutation.isPending}
+        isConfirmingPayment={monobankConfirmMutation.isPending}
         activeTopic={monetizationTopic}
         initialMediaType={monetizationMedia}
+        billingBanner={billingBanner}
         onChangeTier={(nextTier) => subscriptionMutation.mutate(nextTier)}
+        onStartCheckout={() => monobankCheckoutMutation.mutate()}
+        onRefreshPaymentStatus={() => monobankConfirmMutation.mutate(pendingBillingRef)}
       />
     </div>
   )

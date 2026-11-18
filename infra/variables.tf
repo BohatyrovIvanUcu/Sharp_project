@@ -99,3 +99,10 @@ variable "google_client_secret" {
   default   = ""
   sensitive = true
 }
+
+variable "monobank_api_token" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Monobank Acquiring X-Token (sandbox or merchant token)"
+}

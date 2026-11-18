@@ -3,8 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import User, default_cognitive_profile
-from app.schemas import SubscriptionStatusOut, SubscriptionTier
+from app.schemas import SubscriptionStatusOut, SubscriptionTier, UserProfileOut
 
 
 def _find_user(db: Session, cognito_sub: str, email: str = "") -> User | None:
@@ -86,3 +87,15 @@ def update_subscription(db: Session, user: User, tier: SubscriptionTier) -> User
     db.commit()
     db.refresh(user)
     return user
+
+
+def to_user_profile_out(user: User) -> UserProfileOut:
+    return UserProfileOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        cognitive_profile=user.cognitive_profile,
+        subscription=get_subscription(user),
+        auth_enabled=settings.auth_enabled,
+        created_at=user.created_at,
+    )

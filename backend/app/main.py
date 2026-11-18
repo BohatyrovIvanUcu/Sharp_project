@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routers import frameworks, health, memory, sessions, users
+from app.routers import billing, frameworks, health, memory, sessions, users
 
 app = FastAPI(
     title="Sharp API",
@@ -46,6 +46,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(users.router)
+app.include_router(billing.router)
 app.include_router(frameworks.router)
 app.include_router(sessions.router)
 app.include_router(memory.router)

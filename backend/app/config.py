@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     aws_secret_access_key: str | None = Field(default=None)
     aws_session_token: str | None = Field(default=None)
 
+    # Monobank Acquiring & Billing Proxy
+    monobank_api_token: str = ""
+    monobank_api_base_url: str = "https://api.monobank.ua"
+    monobank_pro_amount_kopecks: int = 99900
+    monobank_pro_currency: int = 980
+    app_url: str = ""
+    billing_internal_secret: str = ""
+    backend_internal_url: str = ""
+
     @model_validator(mode="after")
     def validate_production_auth(self) -> "Settings":
         if self.environment == "production" and (not self.cognito_user_pool_id or not self.cognito_client_id):

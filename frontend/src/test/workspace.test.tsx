@@ -1351,34 +1351,207 @@ describe("WorkspacePage interactive Socratic flow", () => {
     }))
 
     let currentTier: "free" | "pro" = "free"
+    let checkoutCalled = false
+    const originalLocation = window.location
+    const assignMock = vi.fn()
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, assign: assignMock, search: "" },
+    })
+
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === "string" ? input : input.toString()
+          if (url.endsWith("/api/billing/monobank/checkout") && init?.method === "POST") {
+            checkoutCalled = true
+            return new Response(
+              JSON.stringify({
+                invoice_id: "mono-inv-15",
+                reference: "sharp-pro-test-15",
+                page_url: "https://pay.monobank.ua/mono-inv-15",
+                amount: 99900,
+                currency: 980,
+                status: "created",
+              }),
+            )
+          }
+          if (url.endsWith("/api/me/subscription") && init?.method === "POST") {
+            const body = JSON.parse(String(init.body ?? "{}")) as { tier: "free" | "pro" }
+            currentTier = body.tier
+            return new Response(
+              JSON.stringify({
+                id: "u1",
+                email: "dev@sharp.local",
+                name: "Dev",
+                cognitive_profile: {
+                  blocker_counts: { overwhelm: 2 },
+                  effective_frameworks: { first_principles: 2 },
+                  completed_steps: 2,
+                  completed_sessions: 1,
+                  total_focus_seconds: 300,
+                  current_streak: 1,
+                },
+                subscription: {
+                  tier: currentTier,
+                  audio_coach_enabled: currentTier === "pro",
+                  video_explainer_enabled: currentTier === "pro",
+                },
+                auth_enabled: false,
+                created_at: new Date().toISOString(),
+              }),
+            )
+          }
+          if (url.endsWith("/api/me")) {
+            return new Response(
+              JSON.stringify({
+                id: "u1",
+                email: "dev@sharp.local",
+                name: "Dev",
+                cognitive_profile: {
+                  blocker_counts: { overwhelm: 2 },
+                  effective_frameworks: { first_principles: 2 },
+                  completed_steps: 2,
+                  completed_sessions: 1,
+                  total_focus_seconds: 300,
+                  current_streak: 1,
+                },
+                subscription: {
+                  tier: currentTier,
+                  audio_coach_enabled: currentTier === "pro",
+                  video_explainer_enabled: currentTier === "pro",
+                },
+                auth_enabled: false,
+                created_at: new Date().toISOString(),
+              }),
+            )
+          }
+          if (url.endsWith("/api/frameworks")) return new Response(JSON.stringify(mockFrameworks))
+          if (url.endsWith("/api/memory")) {
+            return new Response(JSON.stringify({ cognitive_profile: {}, memories: [] }))
+          }
+          if (url.endsWith("/api/sessions/sess-15")) {
+            return new Response(
+              JSON.stringify({
+                ...mockSessionTurn1,
+                id: "sess-15",
+                title: "Складна задача з 15 кроками",
+                phase: "executing",
+                steps: fifteenSteps,
+                messages: [
+                  {
+                    id: "msg-done",
+                    role: "assistant",
+                    content: "Домовилися. Питання закрите — переходь до першого кроку.",
+                    ai_source: "bedrock",
+                    conversation_complete: true,
+                    created_at: new Date().toISOString(),
+                  },
+                ],
+              }),
+            )
+          }
+          if (url.endsWith("/api/sessions")) {
+            return new Response(
+              JSON.stringify([
+                {
+                  ...mockSessionTurn1,
+                  id: "sess-15",
+                  title: "Складна задача з 15 кроками",
+                  phase: "executing",
+                  active_step: fifteenSteps[0],
+                },
+              ]),
+            )
+          }
+          return new Response("Not found", { status: 404 })
+        }),
+      )
+
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <WorkspacePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      )
+
+      const sidebar = await screen.findByRole("complementary")
+      await userEvent.click(
+        await within(sidebar).findByRole("button", { name: /^Складна задача з 15 кроками/i }),
+      )
+
+      // Step limit notice is shown clearly in PomodoroStepRunner
+      expect(
+        await screen.findByText(/Досягнуто максимальну деталізацію \(15 кроків\)/i),
+      ).toBeInTheDocument()
+
+      // Open assistant drawer -> shows conversation completion banner
+      await userEvent.click(screen.getByRole("button", { name: /^Асистент/i }))
+      expect(
+        await screen.findByText(/Питання розібрано — час переходити до дії/i),
+      ).toBeInTheDocument()
+
+      // Open Audio Coach modal from step runner and start Monobank checkout
+      await userEvent.click(screen.getByRole("button", { name: /Аудіо-розмова/i }))
+      const modal = await screen.findByRole("dialog", {
+        name: /Sharp Pro: Аудіо- та Відео-розбір складних кроків/i,
+      })
+      expect(within(modal).getByText("Free Tier (Безкоштовний)")).toBeInTheDocument()
+      expect(within(modal).getByText("Paid Tier (Sharp Pro)")).toBeInTheDocument()
+      expect(within(modal).getByText("999 ₴ / міс")).toBeInTheDocument()
+      await userEvent.click(within(modal).getByRole("button", { name: /Активувати Sharp Pro/i }))
+      await waitFor(() => expect(checkoutCalled).toBe(true))
+      expect(assignMock).toHaveBeenCalledWith("https://pay.monobank.ua/mono-inv-15")
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: originalLocation })
+    }
+  })
+
+  it("confirms Monobank payment return params and unlocks Sharp Pro", async () => {
+    window.history.replaceState({}, "", "/?billing=monobank&ref=sharp-pro-ret1")
+    let confirmedRef: string | null = null
+    let tier: "free" | "pro" = "free"
 
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === "string" ? input : input.toString()
-        if (url.endsWith("/api/me/subscription") && init?.method === "POST") {
-          const body = JSON.parse(String(init.body ?? "{}")) as { tier: "free" | "pro" }
-          currentTier = body.tier
+        if (url.endsWith("/api/billing/monobank/confirm") && init?.method === "POST") {
+          const body = JSON.parse(String(init.body ?? "{}")) as { reference?: string }
+          confirmedRef = body.reference ?? null
+          tier = "pro"
           return new Response(
             JSON.stringify({
-              id: "u1",
-              email: "dev@sharp.local",
-              name: "Dev",
-              cognitive_profile: {
-                blocker_counts: { overwhelm: 2 },
-                effective_frameworks: { first_principles: 2 },
-                completed_steps: 2,
-                completed_sessions: 1,
-                total_focus_seconds: 300,
-                current_streak: 1,
+              invoice_id: "mono-inv-ret",
+              reference: "sharp-pro-ret1",
+              status: "success",
+              amount: 99900,
+              currency: 980,
+              upgraded: true,
+              failure_reason: null,
+              user: {
+                id: "u1",
+                email: "dev@sharp.local",
+                name: "Dev",
+                cognitive_profile: {
+                  blocker_counts: {},
+                  effective_frameworks: {},
+                  completed_steps: 0,
+                  completed_sessions: 0,
+                  total_focus_seconds: 0,
+                  current_streak: 0,
+                },
+                subscription: {
+                  tier: "pro",
+                  audio_coach_enabled: true,
+                  video_explainer_enabled: true,
+                },
+                auth_enabled: false,
+                created_at: new Date().toISOString(),
               },
-              subscription: {
-                tier: currentTier,
-                audio_coach_enabled: currentTier === "pro",
-                video_explainer_enabled: currentTier === "pro",
-              },
-              auth_enabled: false,
-              created_at: new Date().toISOString(),
             }),
           )
         }
@@ -1389,17 +1562,17 @@ describe("WorkspacePage interactive Socratic flow", () => {
               email: "dev@sharp.local",
               name: "Dev",
               cognitive_profile: {
-                blocker_counts: { overwhelm: 2 },
-                effective_frameworks: { first_principles: 2 },
-                completed_steps: 2,
-                completed_sessions: 1,
-                total_focus_seconds: 300,
-                current_streak: 1,
+                blocker_counts: {},
+                effective_frameworks: {},
+                completed_steps: 0,
+                completed_sessions: 0,
+                total_focus_seconds: 0,
+                current_streak: 0,
               },
               subscription: {
-                tier: currentTier,
-                audio_coach_enabled: currentTier === "pro",
-                video_explainer_enabled: currentTier === "pro",
+                tier,
+                audio_coach_enabled: tier === "pro",
+                video_explainer_enabled: tier === "pro",
               },
               auth_enabled: false,
               created_at: new Date().toISOString(),
@@ -1410,40 +1583,7 @@ describe("WorkspacePage interactive Socratic flow", () => {
         if (url.endsWith("/api/memory")) {
           return new Response(JSON.stringify({ cognitive_profile: {}, memories: [] }))
         }
-        if (url.endsWith("/api/sessions/sess-15")) {
-          return new Response(
-            JSON.stringify({
-              ...mockSessionTurn1,
-              id: "sess-15",
-              title: "Складна задача з 15 кроками",
-              phase: "executing",
-              steps: fifteenSteps,
-              messages: [
-                {
-                  id: "msg-done",
-                  role: "assistant",
-                  content: "Домовилися. Питання закрите — переходь до першого кроку.",
-                  ai_source: "bedrock",
-                  conversation_complete: true,
-                  created_at: new Date().toISOString(),
-                },
-              ],
-            }),
-          )
-        }
-        if (url.endsWith("/api/sessions")) {
-          return new Response(
-            JSON.stringify([
-              {
-                ...mockSessionTurn1,
-                id: "sess-15",
-                title: "Складна задача з 15 кроками",
-                phase: "executing",
-                active_step: fifteenSteps[0],
-              },
-            ]),
-          )
-        }
+        if (url.endsWith("/api/sessions")) return new Response(JSON.stringify([]))
         return new Response("Not found", { status: 404 })
       }),
     )
@@ -1457,32 +1597,16 @@ describe("WorkspacePage interactive Socratic flow", () => {
       </QueryClientProvider>,
     )
 
-    const sidebar = await screen.findByRole("complementary")
-    await userEvent.click(
-      await within(sidebar).findByRole("button", { name: /^Складна задача з 15 кроками/i }),
-    )
-
-    // Step limit notice is shown clearly in PomodoroStepRunner
-    expect(
-      await screen.findByText(/Досягнуто максимальну деталізацію \(15 кроків\)/i),
-    ).toBeInTheDocument()
-
-    // Open assistant drawer -> shows conversation completion banner
-    await userEvent.click(screen.getByRole("button", { name: /^Асистент/i }))
-    expect(
-      await screen.findByText(/Питання розібрано — час переходити до дії/i),
-    ).toBeInTheDocument()
-
-    // Open Audio Coach modal from step runner and unlock Sharp Pro
-    await userEvent.click(screen.getByRole("button", { name: /Аудіо-розмова/i }))
     const modal = await screen.findByRole("dialog", {
       name: /Sharp Pro: Аудіо- та Відео-розбір складних кроків/i,
     })
-    expect(within(modal).getByText("Free Tier (Безкоштовний)")).toBeInTheDocument()
-    expect(within(modal).getByText("Paid Tier (Sharp Pro)")).toBeInTheDocument()
-    await userEvent.click(within(modal).getByRole("button", { name: /Активувати Sharp Pro/i }))
+    await waitFor(() => expect(confirmedRef).toBe("sharp-pro-ret1"))
+    expect(
+      await within(modal).findByText(/Оплату через monobank підтверджено! Sharp Pro активовано\./i),
+    ).toBeInTheDocument()
     expect(
       await within(modal).findByRole("button", { name: /Перемкнути на безкоштовний план/i }),
     ).toBeInTheDocument()
+    expect(window.location.search).toBe("")
   })
 })

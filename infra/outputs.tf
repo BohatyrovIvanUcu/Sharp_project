@@ -8,6 +8,11 @@ output "api_url" {
   description = "Direct AWS Lambda Function URL"
 }
 
+output "monobank_proxy_url" {
+  value       = aws_lambda_function_url.monobank_proxy.function_url
+  description = "Direct AWS Monobank Proxy Lambda Function URL"
+}
+
 output "ecr_repository_url" {
   value = aws_ecr_repository.backend.repository_url
 }

@@ -93,6 +93,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    billing_invoices: Mapped[list["BillingInvoice"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class ThinkingSession(Base):
@@ -236,3 +240,32 @@ class MemoryEmbedding(Base):
 
     user: Mapped[User] = relationship(back_populates="memories")
     session: Mapped["ThinkingSession | None"] = relationship(back_populates="memories")
+
+
+class BillingInvoice(Base):
+    __tablename__ = "billing_invoices"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=default_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(32), default="monobank", nullable=False)
+    invoice_id: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    reference: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[int] = mapped_column(Integer, default=980, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="created", nullable=False)
+    page_url: Mapped[str] = mapped_column(Text, nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+        nullable=False,
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="billing_invoices")

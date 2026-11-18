@@ -204,6 +204,61 @@ class UpdateSubscriptionIn(BaseModel):
     tier: SubscriptionTier
 
 
+class MonobankCheckoutOut(BaseModel):
+    invoice_id: str
+    reference: str
+    page_url: str
+    amount: int
+    currency: int
+    status: str = "created"
+
+
+class MonobankConfirmIn(BaseModel):
+    reference: str | None = Field(default=None, max_length=128)
+    invoice_id: str | None = Field(default=None, max_length=128)
+
+
+class MonobankConfirmOut(BaseModel):
+    invoice_id: str
+    reference: str
+    status: str
+    amount: int
+    currency: int
+    upgraded: bool
+    failure_reason: str | None = None
+    user: "UserProfileOut"
+
+
+class BillingInvoiceSummaryOut(BaseModel):
+    invoice_id: str
+    reference: str
+    status: str
+    amount: int
+    currency: int
+    page_url: str
+    failure_reason: str | None = None
+    created_at: datetime
+    paid_at: datetime | None = None
+
+
+class InternalBillingRecordIn(BaseModel):
+    invoice_id: str = Field(min_length=1, max_length=128)
+    reference: str = Field(min_length=1, max_length=128)
+    amount: int = Field(gt=0)
+    currency: int = Field(default=980, gt=0)
+    status: str = Field(default="created", max_length=32)
+    page_url: str = Field(min_length=1, max_length=1024)
+
+
+class InternalBillingSyncIn(BaseModel):
+    invoice_id: str = Field(min_length=1, max_length=128)
+    status: str = Field(min_length=1, max_length=32)
+    amount: int | None = None
+    ccy: int | None = None
+    reference: str | None = Field(default=None, max_length=128)
+    failure_reason: str | None = Field(default=None, max_length=500)
+
+
 class UserProfileOut(BaseModel):
     id: str
     email: str

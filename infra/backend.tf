@@ -153,6 +153,11 @@ resource "random_password" "origin_verify" {
   special = false
 }
 
+resource "random_password" "billing_internal" {
+  length  = 48
+  special = false
+}
+
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnets"
   subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
@@ -257,23 +262,27 @@ resource "aws_lambda_function" "backend" {
 
   environment {
     variables = {
-      DB_HOST                    = aws_rds_cluster.db.endpoint
-      DB_PORT                    = tostring(aws_rds_cluster.db.port)
-      DB_NAME                    = var.db_name
-      DB_USER                    = var.db_username
-      DB_PASSWORD                = random_password.db.result
-      DB_NULL_POOL               = "true"
-      ENVIRONMENT                = "production"
-      ORIGIN_VERIFY_SECRET       = random_password.origin_verify.result
-      CORS_ORIGINS               = join(",", var.cors_origins)
-      SEED                       = var.seed
-      COGNITO_REGION             = var.region
-      COGNITO_USER_POOL_ID       = aws_cognito_user_pool.main.id
-      COGNITO_CLIENT_ID          = aws_cognito_user_pool_client.main.id
-      COGNITO_JWKS               = var.cognito_jwks
-      BEDROCK_REGION             = var.region
-      BEDROCK_MODEL_ID           = var.bedrock_model_id
-      BEDROCK_EMBEDDING_MODEL_ID = var.bedrock_embedding_model_id
+      DB_HOST                     = aws_rds_cluster.db.endpoint
+      DB_PORT                     = tostring(aws_rds_cluster.db.port)
+      DB_NAME                     = var.db_name
+      DB_USER                     = var.db_username
+      DB_PASSWORD                 = random_password.db.result
+      DB_NULL_POOL                = "true"
+      ENVIRONMENT                 = "production"
+      ORIGIN_VERIFY_SECRET        = random_password.origin_verify.result
+      CORS_ORIGINS                = join(",", var.cors_origins)
+      SEED                        = var.seed
+      COGNITO_REGION              = var.region
+      COGNITO_USER_POOL_ID        = aws_cognito_user_pool.main.id
+      COGNITO_CLIENT_ID           = aws_cognito_user_pool_client.main.id
+      COGNITO_JWKS                = var.cognito_jwks
+      BEDROCK_REGION              = var.region
+      BEDROCK_MODEL_ID            = var.bedrock_model_id
+      BEDROCK_EMBEDDING_MODEL_ID  = var.bedrock_embedding_model_id
+      MONOBANK_API_TOKEN          = var.monobank_api_token
+      MONOBANK_PRO_AMOUNT_KOPECKS = "99900"
+      MONOBANK_PRO_CURRENCY       = "980"
+      BILLING_INTERNAL_SECRET     = random_password.billing_internal.result
     }
   }
 }
@@ -295,6 +304,71 @@ resource "aws_lambda_permission" "backend_invoke" {
   statement_id             = "FunctionURLAllowInvoke"
   action                   = "lambda:InvokeFunction"
   function_name            = aws_lambda_function.backend.function_name
+  principal                = "*"
+  invoked_via_function_url = true
+}
+
+# =====================================================================
+# Non-VPC Monobank Billing Proxy Lambda (outbound HTTPS at $0 NAT cost)
+# =====================================================================
+resource "aws_cloudwatch_log_group" "monobank_proxy" {
+  name              = "/aws/lambda/${var.project_name}-monobank-proxy"
+  retention_in_days = 14
+}
+
+resource "aws_lambda_function" "monobank_proxy" {
+  function_name = "${var.project_name}-monobank-proxy"
+  package_type  = "Image"
+  image_uri     = var.image_uri
+  role          = aws_iam_role.backend.arn
+  architectures = [var.architecture]
+  memory_size   = 256
+  timeout       = 30
+
+  image_config {
+    command = ["app.billing_proxy_handler.handler"]
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.monobank_proxy,
+    aws_lambda_function_url.backend,
+  ]
+
+  environment {
+    variables = {
+      ENVIRONMENT                 = "production"
+      ORIGIN_VERIFY_SECRET        = random_password.origin_verify.result
+      BILLING_INTERNAL_SECRET     = random_password.billing_internal.result
+      BACKEND_INTERNAL_URL        = trimsuffix(aws_lambda_function_url.backend.function_url, "/")
+      CORS_ORIGINS                = join(",", var.cors_origins)
+      COGNITO_REGION              = var.region
+      COGNITO_USER_POOL_ID        = aws_cognito_user_pool.main.id
+      COGNITO_CLIENT_ID           = aws_cognito_user_pool_client.main.id
+      COGNITO_JWKS                = var.cognito_jwks
+      MONOBANK_API_TOKEN          = var.monobank_api_token
+      MONOBANK_PRO_AMOUNT_KOPECKS = "99900"
+      MONOBANK_PRO_CURRENCY       = "980"
+    }
+  }
+}
+
+resource "aws_lambda_function_url" "monobank_proxy" {
+  function_name      = aws_lambda_function.monobank_proxy.function_name
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "monobank_proxy_url" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.monobank_proxy.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
+resource "aws_lambda_permission" "monobank_proxy_invoke" {
+  statement_id             = "FunctionURLAllowInvoke"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.monobank_proxy.function_name
   principal                = "*"
   invoked_via_function_url = true
 }

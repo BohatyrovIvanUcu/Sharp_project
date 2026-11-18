@@ -1,9 +1,12 @@
 import { authEnabled, getIdToken, signOut } from "@/lib/auth"
 import type {
+  BillingInvoiceSummary,
   FrameworkId,
   FrameworkItem,
   Language,
   MemoryOverview,
+  MonobankCheckoutResponse,
+  MonobankConfirmResponse,
   SessionAttachmentInput,
   SessionMode,
   SessionSummary,
@@ -61,6 +64,17 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ tier }),
     }),
+  startMonobankCheckout: () =>
+    request<MonobankCheckoutResponse>("/api/billing/monobank/checkout", {
+      method: "POST",
+    }),
+  confirmMonobankPayment: (payload: { reference?: string; invoice_id?: string } = {}) =>
+    request<MonobankConfirmResponse>("/api/billing/monobank/confirm", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getLatestBillingInvoice: () =>
+    request<BillingInvoiceSummary | null>("/api/billing/monobank/latest"),
   getFrameworks: () => request<FrameworkItem[]>("/api/frameworks"),
   getMemory: () => request<MemoryOverview>("/api/memory"),
   listSessions: () => request<SessionSummary[]>("/api/sessions"),
