@@ -197,9 +197,6 @@ export function MonetizationModal({
               <p className="mt-1 text-xs leading-relaxed text-ink-2">
                 {t.proTierSub}
               </p>
-              <p className="mt-1 text-[11px] font-medium text-accent/90">
-                {t.proTierPriceEquiv}
-              </p>
 
               <ul className="mt-3.5 space-y-2 text-xs leading-relaxed text-ink">
                 <li className="flex items-start gap-2">
